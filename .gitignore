@@ -1,0 +1,6 @@
+SDStore-transf/
+bin/
+obj/
+client
+server
+.vscode/
