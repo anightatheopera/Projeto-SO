@@ -22,8 +22,12 @@ bin/sdstore: obj/sdstore.o
 obj/sdstore.o: src/sdstore.c
 	gcc $(CFLAGS) -c -o $@ $^
 
-$(OFILES): $(CFILES)
-	gcc $(CFLAGS) -c -o $(OFILES) $(CFILES)
+obj/util/proc.o: src/util/proc.c
+	gcc $(CFLAGS) -c -o $@ $^
+
+obj/util/sv.o: src/util/sv.c
+	gcc $(CFLAGS) -c -o $@ $^
+
 
 .PHONY: clean
 clean:
