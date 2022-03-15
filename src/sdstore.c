@@ -1,6 +1,7 @@
 #include <stdio.h>
+//CLIENTE
 
 int main(){
-    printf("hello world!");
+    
     return 0;
 }

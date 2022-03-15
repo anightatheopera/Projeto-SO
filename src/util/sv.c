@@ -25,7 +25,6 @@ SV sv_slurp_file(const char* filename){
     /* Get size of the file */
     struct stat s;
     int status = fstat(fd, &s);
-    (void) status;
     size_t size = (size_t) s.st_size;
     if(status < 0){
         goto err_stat;
