@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "util/sv.h"
 #include "util/proc.h"
 //SERVIDOR
+
 
 char* get_trans_id(char* path){
     while(*path != '\0' && *path != ' '){
@@ -26,6 +28,7 @@ int get_max_inst(char* path){
     else return 0;
 }
 
+
 /* Prints instructions on how to use the program */
 void usage(int argc, char** argv){
     (void) argc;
@@ -44,24 +47,49 @@ int main(int argc, char** argv){
     SV conf = sv_slurp_file(argv[1]);
     (void) conf;
 
-/*
+    int fd = open("README.md", O_RDONLY);
+    int fdout = open("/tmp/teste", O_WRONLY | O_CREAT, 0777);
+
+    Proc reader;
+    proc_reader(&reader, fd);
+    close(fd);
+
     Proc cat;
-    proc_exec(&cat, "/bin/cat");
+    proc_exec_in(&cat, "/bin/cat", reader.out);
+
+    Proc wc;
+    proc_exec_in(&wc, "/bin/wc", cat.out);
+
+    Proc writer;
+    proc_writer(&writer, fdout, wc.out);
+    close(fdout);
+    
+    int wstatus;
+    proc_wait(&writer, &wstatus, 0);
+    (void) wstatus;
+    close(fdout);
+    for(int i = 0; i < 3; i++){
+        close(i);
+    }
+/*
+    int pipeN[2];
+    pipe(pipeN);
+    Proc cat;
+    proc_exec_in(&cat, "/bin/cat", pipeN[0]);
 
     char buf[5];
     
-    write(cat.in, "cenas", 5);
+    write(pipeN[1], "cenas", 5);
     read(cat.out, buf, 5);
+    close(cat.out);
 
     write(STDOUT_FILENO, buf, 5);
-    
-    proc_close(&cat);
 
+    close(pipeN[1]);
     int wstatus;
     proc_wait(&cat, &wstatus, 0);
     (void) wstatus;
 */
-
     //sv_write(conf, STDOUT_FILENO);
     return 0;
 }

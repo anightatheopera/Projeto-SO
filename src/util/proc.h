@@ -5,11 +5,20 @@
 
 typedef struct {
     pid_t pid;
-    int in;
-    int out;
+    int in; // coiso do stdin
+    int out; //bcoiso do stdout
 } Proc;
 
-int proc_exec(Proc* proc, const char* pathname);
+int proc_reader(Proc* proc, int fd);
+
+int proc_writer(Proc* proc, int fd, int in);
+
+/*
+    proc - where to put the information of the created process
+    pathname - the executable to run
+    in - stdin for the process
+*/
+int proc_exec_in(Proc* proc, const char* pathname, int in);
 
 void proc_close(Proc* proc);
 
