@@ -11,24 +11,30 @@ server: bin/sdstored
 client: bin/sdstore
 
 bin/sdstored: obj/sdstored.o $(OFILES)
+	@ mkdir -p bin obj obj/util 
 	gcc $(CFLAGS) $^ -o $@
 
 obj/sdstored.o: src/sdstored.c
+	@ mkdir -p bin obj obj/util 
 	gcc $(CFLAGS) -c -o $@ $^
 
 bin/sdstore: obj/sdstore.o
+	@ mkdir -p bin obj obj/util 
 	gcc $(CFLAGS) $^ -o $@
 
 obj/sdstore.o: src/sdstore.c
+	@ mkdir -p bin obj obj/util 
 	gcc $(CFLAGS) -c -o $@ $^
 
 obj/util/proc.o: src/util/proc.c
+	@ mkdir -p bin obj obj/util 
 	gcc $(CFLAGS) -c -o $@ $^
 
 obj/util/sv.o: src/util/sv.c
+	@ mkdir -p bin obj obj/util 
 	gcc $(CFLAGS) -c -o $@ $^
 
 
 .PHONY: clean
 clean:
-	rm obj/* tmp/* bin/{sdstore,sdstored}
+	rm -r obj  bin

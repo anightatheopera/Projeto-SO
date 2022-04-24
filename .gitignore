@@ -4,3 +4,4 @@ obj/
 client
 server
 .vscode/
+compile_commands.json
