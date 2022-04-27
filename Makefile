@@ -1,4 +1,4 @@
-CFLAGS=-Wall -Wextra -Wdouble-promotion -Wconversion -Wsign-conversion -std=c11 -g
+CFLAGS=-Wall -Wextra -Wdouble-promotion -Wconversion -Wsign-conversion -std=c11 -g -O0
 
 CFILES := $(wildcard src/util/*.c)
 HFILES := $(wildcard src/util/*.h)
@@ -31,6 +31,10 @@ obj/util/proc.o: src/util/proc.c
 	gcc $(CFLAGS) -c -o $@ $^
 
 obj/util/sv.o: src/util/sv.c
+	@ mkdir -p bin obj obj/util 
+	gcc $(CFLAGS) -c -o $@ $^
+
+obj/util/operations.o: src/util/operations.c
 	@ mkdir -p bin obj obj/util 
 	gcc $(CFLAGS) -c -o $@ $^
 

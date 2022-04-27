@@ -14,4 +14,6 @@ SV sv_from_cstr(const char* cstr);
 
 ssize_t sv_write(SV sv, int fd);
 
+SV sv_chop_line(SV* sv);
+
 #endif

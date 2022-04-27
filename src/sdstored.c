@@ -7,31 +7,6 @@
 #include "util/proc.h"
 
 
-
-
-
-
-
-
-
-//Macros e Ficheiros guardados aqui
-
-#include "util/utilities.h"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 //SERVIDOR
 
 
@@ -74,49 +49,21 @@ int main(int argc, char** argv){
     SV conf = sv_slurp_file(argv[1]);
     (void) conf;
 
-    int fd = open("README.md", O_RDONLY);
-    int fdout = open("/tmp/teste", O_WRONLY | O_CREAT, 0777);
+    /*
+    Operations* ops =  operations_new();
+    operations_add(ops, BCOMPRESS);
+    operations_add(ops, BDECOMPRESS);
+    operations_add(ops, NOP);
+    operations_add(ops, NOP);
 
-    Proc reader;
-    proc_reader(&reader, fd);
-    close(fd);
+    procs_run_operations("bin","README.md","teste",ops);
+    */
 
-    Proc cat;
-    proc_exec_in(&cat, "/bin/cat", reader.out);
-
-    Proc wc;
-    proc_exec_in(&wc, "/bin/wc", cat.out);
-
-    Proc writer;
-    proc_writer(&writer, fdout, wc.out);
-    close(fdout);
-    
-    int wstatus;
-    proc_wait(&writer, &wstatus, 0);
-    (void) wstatus;
-    close(fdout);
-    for(int i = 0; i < 3; i++){
-        close(i);
+    while(conf.count > 0){
+        SV line = sv_chop_line(&conf);
+        sv_write(line, STDOUT_FILENO);
     }
-/*
-    int pipeN[2];
-    pipe(pipeN);
-    Proc cat;
-    proc_exec_in(&cat, "/bin/cat", pipeN[0]);
-
-    char buf[5];
     
-    write(pipeN[1], "cenas", 5);
-    read(cat.out, buf, 5);
-    close(cat.out);
-
-    write(STDOUT_FILENO, buf, 5);
-
-    close(pipeN[1]);
-    int wstatus;
-    proc_wait(&cat, &wstatus, 0);
-    (void) wstatus;
-*/
     //sv_write(conf, STDOUT_FILENO);
     return 0;
 }

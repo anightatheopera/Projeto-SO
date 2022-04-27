@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <assert.h>
 
 #include "sv.h"
 
@@ -74,3 +75,22 @@ ssize_t sv_write(SV sv, int fd){
     return -1;
 }
 
+SV sv_chop_line(SV* sv){
+    SV ret = {
+        .data = sv->data
+    };
+    while(sv->count > 0 && *sv->data != '\n'){
+        sv->data++;
+        sv->count--;
+    }
+
+    assert(sv->data >= ret.data);
+    ret.count = (size_t) (sv->data - ret.data);
+
+    if(*sv->data == '\n'){
+        sv->data++;
+        sv->count--;
+    }
+
+    return ret;
+}
