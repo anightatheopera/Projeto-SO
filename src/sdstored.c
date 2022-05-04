@@ -5,7 +5,7 @@
 
 #include "util/sv.h"
 #include "util/proc.h"
-
+#include "util/utilities.h"
 
 //SERVIDOR
 
@@ -40,11 +40,53 @@ void usage(int argc, char** argv){
     sv_write(sv_from_cstr(buf), STDOUT_FILENO);
 }
 
+void parse_message(char* buf, int size){
+    // ex:
+    // buf is --> xxxxxx:proc-file;<priority>;file_in;file_out;filter_1;filter_2;...filter_n;
+
+    char* pid = malloc(sizeof (char));
+    char fifo[MAX_MESSAGE];
+    int i,j;
+    for ( i = 0; buf[i] != ':'; i++){
+        pid = realloc(pid, sizeof(char)*(i+1));
+        pid[i] = buf[i];
+    }
+    pid[i]='\0';
+    // pid is --> xxxxxx
+    RESPONSE_PIPE(fifo, pid);
+    // fifo is --> /temp/pid
+    if(mkfifo(fifo, 0666) == -1){
+        perror(fifo);
+    }
+    i++;
+    char message[size-i];
+    for (j = 0; i<size; j++, i++){
+        message[j] = buf[i];
+    }
+    // message is --> proc-file;<priority>;file_in;file_out;filter_1;filter_2;...filter_n;
+    /*
+
+
+
+    EXECUTAR A MENSAGEM
+
+
+
+
+    */
+}
+
+
+
+
 /* Main */
 int main(int argc, char** argv){
     if(argc != 3){
         usage(argc, argv);
         exit(-1);
+    }
+    if(mkfifo(CLIENT_SERVER_PIPE, 0666) == -1){
+        perror(CLIENT_SERVER_PIPE);
     }
     SV conf = sv_slurp_file(argv[1]);
     (void) conf;
@@ -64,6 +106,16 @@ int main(int argc, char** argv){
         sv_write(line, STDOUT_FILENO);
     }
     
+    char buf[MAX_MESSAGE];
+    int fd = open(CLIENT_SERVER_PIPE, O_RDONLY);
+    while (1){
+        size_t bytes_read = 0;
+        while(!bytes_read ) 
+           bytes_read = read(fd, buf, MAX_MESSAGE);
+        parse_message(buf, bytes_read);
+    }
+
+
     //sv_write(conf, STDOUT_FILENO);
     return 0;
 }
