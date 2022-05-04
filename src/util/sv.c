@@ -4,6 +4,8 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <assert.h>
+#include <stdbool.h>
+#include <ctype.h>
 
 #include "sv.h"
 
@@ -75,22 +77,66 @@ ssize_t sv_write(SV sv, int fd){
     return -1;
 }
 
-SV sv_chop_line(SV* sv){
+SV sv_chop_while(SV* sv, bool (*pred)(char)){
     SV ret = {
         .data = sv->data
     };
-    while(sv->count > 0 && *sv->data != '\n'){
+    while (sv->count > 0 && pred(*sv->data)){
         sv->data++;
         sv->count--;
     }
 
     assert(sv->data >= ret.data);
     ret.count = (size_t) (sv->data - ret.data);
+    
+    return ret;
+}
+
+bool bool_notnewline(char c){
+    return c != '\n';
+}
+
+SV sv_chop_line(SV* sv){
+    SV ret = sv_chop_while(sv, bool_notnewline);
 
     if(*sv->data == '\n'){
         sv->data++;
         sv->count--;
     }
 
+    return ret;
+}
+
+bool bool_notspace(char c){
+    return !isspace(c);
+}
+
+SV sv_chop_word(SV* sv){
+    return sv_chop_while(sv, bool_notspace);
+}
+
+void sv_trim_whitespace(SV* sv){
+    while(sv->count > 0 && isspace(*sv->data)){
+        sv->data++;
+        sv->count--;
+    }
+
+    while(sv->count > 0 && isspace(sv->data[sv->count-1])){
+        sv->count--;
+    }
+}
+
+long sv_to_long(SV sv){
+    char* endptr = NULL;
+    long ret = strtol(sv.data, &endptr, 10);
+    if(endptr != sv.data + sv.count){
+        return 0;
+    }
+    return ret;
+}
+
+char* sv_dup(SV sv){
+    char* ret = malloc(sv.count);
+    strncpy(ret, sv.data, sv.count);
     return ret;
 }

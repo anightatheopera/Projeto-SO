@@ -19,7 +19,7 @@ static struct {
 
 bool str_to_operation(const char* str, Operation* op){
     for(int i = 0; i < OPERATION_AMOUNT; i++){
-        if(strcmp(str, operation_meta[i].name)){
+        if(!strcmp(str, operation_meta[i].name)){
         *op = (Operation) i;
         return true;
         }
@@ -66,6 +66,36 @@ size_t operations_size(Operations* ops){
 }
 
 void operations_free(Operations* ops){
-    (void) ops;
-    return;
+    free(ops);
+}
+
+void op_mset_add(OperationMSet* mset1, OperationMSet* mset2){
+    for (size_t i = 0; i < OPERATION_AMOUNT; i++){
+        mset1->vs[i] += mset2->vs[i];
+    }
+}
+
+OperationMSet operations_to_mset(Operations* ops){
+    OperationMSet ret = { 0 };
+    for (size_t i = 0; i < operations_size(ops); i++){
+        ret.vs[operations_get(ops, i)]++;
+    }
+    return ret;
+}
+
+// current mset - request mset
+// mset1 - mset2
+void op_mset_sub(OperationMSet* mset1, OperationMSet* mset2){
+    for (size_t i = 0; i < OPERATION_AMOUNT; i++){
+        mset1->vs[i] -= mset2->vs[i];
+    }
+}
+
+bool op_mset_lt(OperationMSet* mset1, OperationMSet* mset2, OperationMSet* max){
+    for (size_t i = 0; i < OPERATION_AMOUNT; i++){
+        if(mset1->vs[i] + mset2->vs[i] > max->vs[i]){
+            return false;
+        }
+    }
+    return true;
 }

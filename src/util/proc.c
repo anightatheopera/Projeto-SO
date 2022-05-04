@@ -118,7 +118,7 @@ Proc* procs_run_operations(const char* filepath_prefix, const char* filepath_in,
         goto err_open_file_in;
     }
 
-    int fd_out = open(filepath_out, O_WRONLY | O_CREAT, 0777);
+    int fd_out = open(filepath_out, O_WRONLY | O_CREAT, 0664);
     if(fd_out < 0){
         goto err_open_file_out;
     }

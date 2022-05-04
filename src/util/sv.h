@@ -16,4 +16,12 @@ ssize_t sv_write(SV sv, int fd);
 
 SV sv_chop_line(SV* sv);
 
+SV sv_chop_word(SV* sv);
+
+void sv_trim_whitespace(SV* sv);
+
+long sv_to_long(SV sv);
+
+char* sv_dup(SV sv);
+
 #endif
