@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 #include "proc.h"
+#include "logger.h"
 
 /* função para ler de um processo */ 
 int proc_reader(Proc* proc, int fd){
@@ -87,6 +88,7 @@ int proc_exec_in(Proc* proc, const char* pathname, int in){
         // so da erro se a coisa em cima nao funfar 
         exit(err);
     } else {
+        logger_debug_fmt("executing %s", pathname);
         close(in);
         close(pipe_out[1]);
         *proc = (Proc) {
