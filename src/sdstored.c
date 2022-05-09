@@ -3,12 +3,14 @@
 #include <unistd.h>
 #include <limits.h>
 #include <fcntl.h>
+#include <string.h>
 
 #include "util/sv.h"
 #include "util/proc.h"
 #include "util/utilities.h"
 #include "util/communication.h"
 #include "util/logger.h"
+#include "util/tasks.h"
 
 //SERVIDOR
 
@@ -29,7 +31,8 @@ void parse_message(char* buf, int size){
     char* pid = malloc(sizeof (char));
     char fifo[MAX_MESSAGE];
     int i,j;
-    for ( i = 0; buf[i] != ':'; i++){
+    for ( i = 0; buf[i] != ':#ifndef PROC_H
+#define PROC_H'; i++){
         pid = realloc(pid, sizeof(char)*(i+1));
         pid[i] = buf[i];
     }
@@ -53,33 +56,30 @@ void parse_message(char* buf, int size){
 typedef struct {
     // path para os ficheiros binarios
     const char* bin_path;
+    // define o numero maximo de instancias de cada executavel
     OperationMSet max_insts;
 } ServerConfiguration;
 
+// inicia no inicio da coisa
 static ServerConfiguration server_configuration;
 
 typedef struct {
-    Request req;
-    OperationMSet mset;
-    pid_t client;
-    int client_fd[2];
-    pid_t handler;
-} Task;
-
-typedef struct {
-    Task* vs[64];
-} Tasks;
-
-typedef struct {
+    // quantidade de coisos que estao a correr
     OperationMSet curr_insts;
+    // tasks que estao a correr
     Tasks running;
+    // tasks que estao na fila
     Tasks in_queue;
 } ServerState;
 
+// inicializar a 0
 static ServerState server_state = {
-    .curr_insts = { .vs = { 0 } }
+    .curr_insts = { .vs = { 0 } },
+    .running = { .vs = { 0 } },
+    .in_queue = { .vs = { 0 } },
 };
 
+char *strdup(const char *s);
 Task* generate_debug_task(){
     Operations* ops =  operations_new();
     operations_add(ops, BCOMPRESS);
@@ -90,8 +90,8 @@ Task* generate_debug_task(){
     Task* ret = malloc(sizeof(Task));
 
     ret->req = (Request) {
-       .filepath_in = "README.md",
-       .filepath_out = "/tmp/test",
+       .filepath_in = strdup("README.md"),
+       .filepath_out = strdup("/tmp/test"),
        .priority = 0,
        .ops = ops
     };
@@ -100,6 +100,16 @@ Task* generate_debug_task(){
     return ret;
 }
 
+Task* next_runnable_task(){
+    for(size_t i = 0; i < server_state.in_queue.sz; i++){
+        if(op_mset_lte(&server_state.curr_insts, &server_state.in_queue.vs[i]->mset, &server_configuration.max_insts)){
+            return tasks_remove(&server_state.in_queue, i);
+        }
+    }
+    return NULL;
+}
+
+// inicia o handler 
 void spawn_client_handler(Task* task){
     pid_t child_pid = fork();
     if(child_pid < 0){
@@ -113,22 +123,34 @@ void spawn_client_handler(Task* task){
             pid_t pid = waitpid(procs[i].pid, NULL, 0);
             logger_debug_fmt("awaited for %d.", pid);
         }
-        (void) procs;
-        exit(-1);
+        sleep(2);
+        exit(0);
     } else {
         logger_debug_fmt("running new task with operations " OPERATION_MSET_FMT, OPERATION_MSET_ARG(task->mset));
+
         op_mset_add(&server_state.curr_insts, &task->mset);
-        logger_debug_fmt("operations currently running " OPERATION_MSET_FMT, OPERATION_MSET_ARG(server_state.curr_insts));
+        tasks_add_running(&server_state.running, task);
         task->handler = child_pid;
+
+        logger_debug_fmt("operations currently running " OPERATION_MSET_FMT, OPERATION_MSET_ARG(server_state.curr_insts));
     }
 }
 
+// da informaçoes sobre o coiso da folha parou 
 void stopped_client_handler(int signum) {
     (void) signum;
-    int wstatus;
+
     int pid = waitpid(-1, NULL, 0);
     logger_debug_fmt("child %d has stopped", pid);
+
+    Task* task = tasks_remove_running(&server_state.running, pid);
+    op_mset_sub(&server_state.curr_insts, &task->mset);
+
     signal(SIGCHLD, stopped_client_handler);
+
+    while((task = next_runnable_task()) != NULL){
+        spawn_client_handler(task);
+    }
 }
 
 
@@ -181,16 +203,20 @@ int main(int argc, char** argv){
     }
     */
     
-   //spawn_client_handler(&task);
-   char buf[100];
-   ssize_t rd;
-   while ((rd = read(STDIN_FILENO, buf, 100))){
-       if(rd < 0){
+    //spawn_client_handler(&task);
+    char buf[100];
+    ssize_t rd;
+    while ((rd = read(STDIN_FILENO, buf, 100))){
+        if(rd < 0){
            continue;
-       }
-       Task* task = generate_debug_task();
-       spawn_client_handler(task);
-   }
+        }
+        Task* task = generate_debug_task();
+        tasks_enqueue(&server_state.in_queue, task);
+        logger_debug_fmt("Amount of tasks in queue: %ld", server_state.in_queue.sz);
+        while((task = next_runnable_task()) != NULL){
+            spawn_client_handler(task);
+        }
+    }
    
 
 

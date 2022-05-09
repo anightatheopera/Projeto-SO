@@ -69,7 +69,7 @@ void operations_free(Operations* ops){
     free(ops);
 }
 
-void op_mset_add(OperationMSet* mset1, OperationMSet* mset2){
+void op_mset_add(OperationMSet* mset1, const OperationMSet* mset2){
     for (size_t i = 0; i < OPERATION_AMOUNT; i++){
         mset1->vs[i] += mset2->vs[i];
     }
@@ -85,13 +85,13 @@ OperationMSet operations_to_mset(Operations* ops){
 
 // current mset - request mset
 // mset1 - mset2
-void op_mset_sub(OperationMSet* mset1, OperationMSet* mset2){
+void op_mset_sub(OperationMSet* mset1, const OperationMSet* mset2){
     for (size_t i = 0; i < OPERATION_AMOUNT; i++){
         mset1->vs[i] -= mset2->vs[i];
     }
 }
 
-bool op_mset_lt(OperationMSet* mset1, OperationMSet* mset2, OperationMSet* max){
+bool op_mset_lte(const OperationMSet* mset1, const OperationMSet* mset2, const OperationMSet* max){
     for (size_t i = 0; i < OPERATION_AMOUNT; i++){
         if(mset1->vs[i] + mset2->vs[i] > max->vs[i]){
             return false;

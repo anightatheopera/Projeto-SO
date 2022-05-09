@@ -42,6 +42,10 @@ obj/util/operations.o: src/util/operations.c
 	@ mkdir -p bin obj obj/util 
 	gcc $(CFLAGS) -c -o $@ $^
 
+obj/util/tasks.o: src/util/tasks.c
+	@ mkdir -p bin obj obj/util 
+	gcc $(CFLAGS) -c -o $@ $^
+
 
 .PHONY: clean
 clean:
