@@ -46,6 +46,9 @@ obj/util/tasks.o: src/util/tasks.c
 	@ mkdir -p bin obj obj/util 
 	gcc $(CFLAGS) -c -o $@ $^
 
+obj/util/communication.o: src/util/communication.c
+	@ mkdir -p bin obj obj/util 
+	gcc $(CFLAGS) -c -o $@ $^
 
 .PHONY: clean
 clean:

@@ -136,7 +136,8 @@ long sv_to_long(SV sv){
 }
 
 char* sv_dup(SV sv){
-    char* ret = malloc(sv.count);
+    char* ret = malloc(sv.count + 1);
     strncpy(ret, sv.data, sv.count);
+    ret[sv.count] = '\0';
     return ret;
 }

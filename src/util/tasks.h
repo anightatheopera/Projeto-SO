@@ -13,7 +13,8 @@ typedef struct {
     // o numero de operaçoes que o pedido pede de cada operaçao
     OperationMSet mset;
     pid_t client;
-    int client_fd[2];
+    int cli2ser_pipe[2];
+    int ser2cli_pipe[2];
     pid_t handler;
 } Task;
 
@@ -21,8 +22,6 @@ typedef struct {
     Task* vs[64];
     size_t sz;
 } Tasks;
-
-Task* task_new(Request r, pid_t client, int client_fd[2]);
 
 void tasks_add_running(Tasks* tasks, Task* newtask);
 Task* tasks_remove_running(Tasks* tasks, pid_t handler);

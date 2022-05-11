@@ -33,6 +33,9 @@ bool operations_add(Operations* ops, Operation op);
 Operation operations_get(Operations* ops, size_t i);
 size_t operations_size(Operations* ops);
 void operations_free(Operations* ops);
+bool operations_write(const Operations* ops, int fd);
+Operations* operations_read(int fd);
+
 OperationMSet operations_to_mset(Operations* ops);
 
 // current mset + request mset

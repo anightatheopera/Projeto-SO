@@ -2,6 +2,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "operations.h"
 
@@ -67,6 +68,19 @@ size_t operations_size(Operations* ops){
 
 void operations_free(Operations* ops){
     free(ops);
+}
+
+bool operations_write(const Operations* ops, int fd){
+    return write(fd, ops, sizeof(Operations)) == sizeof(Operations);
+}
+
+Operations* operations_read(int fd){
+    Operations* ret = malloc(sizeof(Operations));
+    if(read(fd, ret, sizeof(Operations)) != sizeof(Operations)){
+        free(ret);
+        return NULL;
+    }
+    return ret;
 }
 
 void op_mset_add(OperationMSet* mset1, const OperationMSet* mset2){

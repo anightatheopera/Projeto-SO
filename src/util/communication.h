@@ -1,11 +1,13 @@
 #ifndef COMMUNICATION_H
 #define COMMUNICATION_H
 
+#include <stdlib.h>
+
 #include "operations.h"
 
 typedef enum {
-    REQUEST_STATUS,
-    REQUEST_OPERATIONS
+    REQUEST_OPERATIONS,
+    REQUEST_STATUS
 } ClientMessageType;
 
 typedef struct {
@@ -28,11 +30,24 @@ typedef enum {
 } ServerMessageType;
 
 typedef struct {
-    size_t requests_being_processed;
+    size_t requests_being_processedq;
 } ServerMessageStatus;
 
 typedef struct {
     ServerMessageType type;
+    ServerMessageStatus status;
 } ServerMessage;
+
+bool clientmsg_write(ClientMessage* cmsg, int fd);
+bool clientmsg_read(ClientMessage* cmsg, int fd);
+
+bool servermsg_write(ServerMessage* smsg, int fd);
+bool servermsg_read(ServerMessage* smsg, int fd);
+
+int open_server(int pipefd[2], bool create);
+bool open_client2server(pid_t client, int pipefd[2], bool create);
+bool open_server2client(pid_t client, int pipefd[2], bool create);
+int fd_set_nonblocking(int fd);
+void pipe_close(int pipefd[2]);
 
 #endif
