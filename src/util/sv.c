@@ -135,6 +135,21 @@ long sv_to_long(SV sv){
     return ret;
 }
 
+SV sv_to_upper(const char* cstr){
+    char sp[strlen(cstr)];
+    for(int i=0; strlen(cstr)>i; i++){
+        /*
+         * If current character is lowercase alphabet then
+         * convert it to uppercase.
+         */
+        if(cstr[i]>='a' && cstr[i]<='z')
+        {
+            sp[i] = cstr[i] - 32;
+        }
+    }
+    return sv_from_cstr(sp);
+}
+
 char* sv_dup(SV sv){
     char* ret = malloc(sv.count + 1);
     strncpy(ret, sv.data, sv.count);

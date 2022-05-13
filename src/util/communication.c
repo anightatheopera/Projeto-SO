@@ -106,7 +106,7 @@ bool open_fifo(int pipefd[2], bool create, char* filename){
     return true;
 }
 
-int open_server(int pipefd[2], bool create){
+bool open_server(int pipefd[2], bool create){
     if(create){
         mkdir(SERVER_DIR, 0777);
     }

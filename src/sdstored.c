@@ -6,10 +6,10 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <signal.h>
 
 #include "util/sv.h"
 #include "util/proc.h"
-#include "util/utilities.h"
 #include "util/communication.h"
 #include "util/logger.h"
 #include "util/tasks.h"
@@ -25,35 +25,6 @@ void usage(int argc, char** argv){
     snprintf(buf, sizeof(buf), "USAGE: %s [conf_file] [bin_path]\n", argv[0]);
     sv_write(sv_from_cstr(buf), STDOUT_FILENO);
 }
-/*
-void parse_message(char* buf, int size){
-    // ex:
-    // buf is --> xxxxxx:proc-file;<priority>;file_in;file_out;filter_1;filter_2;...filter_n;
-
-    char* pid = malloc(sizeof (char));
-    char fifo[MAX_MESSAGE];
-    int i,j;
-    for ( i = 0; buf[i] != ':#ifndef PROC_H
-#define PROC_H'; i++){
-        pid = realloc(pid, sizeof(char)*(i+1));
-        pid[i] = buf[i];
-    }
-    pid[i]='\0';
-    // pid is --> xxxxxx
-    RESPONSE_PIPE(fifo, pid);
-    // fifo is --> /temp/pid
-    if(mkfifo(fifo, 0666) == -1){
-        perror(fifo);
-    }
-    i++;
-    char message[size-i];
-    for (j = 0; i<size; j++, i++){
-        message[j] = buf[i];
-    }
-    // message is --> proc-file;<priority>;file_in;file_out;filter_1;filter_2;...filter_n;
-
-}
-*/
 
 typedef struct {
     // path para os ficheiros binarios

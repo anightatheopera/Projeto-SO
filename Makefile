@@ -18,7 +18,7 @@ obj/sdstored.o: src/sdstored.c
 	@ mkdir -p bin obj obj/util 
 	gcc $(CFLAGS) -c -o $@ $^
 
-bin/sdstore: obj/sdstore.o
+bin/sdstore: obj/sdstore.o $(OFILES)
 	@ mkdir -p bin obj obj/util 
 	gcc $(CFLAGS) $^ -o $@
 

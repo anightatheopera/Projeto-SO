@@ -1,16 +1,25 @@
-#include <unistd.h>
-#include <fcntl.h>
 #include <stdio.h>
-#include <signal.h>
-#include <string.h>
 #include <stdlib.h>
+
+#include <unistd.h>
+#include <limits.h>
+#include <fcntl.h>
+#include <assert.h>
+#include <errno.h>
+#include <signal.h>
+#include <stdbool.h>
 #include <sys/wait.h>
 #include <string.h>
-#include <limits.h>
 
-#include "util/utilities.h"
+#include "util/sv.h"
+#include "util/proc.h"
+#include "util/communication.h"
+#include "util/logger.h"
+#include "util/tasks.h"
 
-//CLIENTE
+#define WRITE_LITERAL(fd, str) write(fd, str, sizeof(str))
+#define COMPARE_STRING(str1, str2) !strcmp(str1,str2)
+
 
 void print_help(){
 	WRITE_LITERAL(1, "\nUsage : ./sdstore <proc-file | status>\n\n");
@@ -26,62 +35,122 @@ void alarmhandler(int signum) {
 
 int main (int argc,char** argv) {
 	signal(SIGALRM, alarmhandler); // error handling connection timeout
-
+	
 	if (argc >= 2 && (COMPARE_STRING(argv[1], "status") || COMPARE_STRING(argv[1],"proc-file"))){
-		char message[MAX_MESSAGE];
-		char pid_str[15];
-		snprintf(pid_str, 15, "%d", getpid());
-		snprintf(message, 32, "%s:", pid_str);
 
-		for (int i = 1; i < argc; i++) {
-			strcat(message, argv[i]);
-			strcat(message, ";");
+		// abrir main pipe;
+		//enviar o PID
+		// abrir pipe pidtoserver
+		// enviar mensagem com o formato ClientMessage
+		// abrir pipe resposta
+		// ler resposta com o formato ServerMessage
+		// transformar o formato em algo readable
+
+		//alarms caso não consiga conectar
+
+
+		ClientMessage* in = calloc(1, sizeof(ClientMessage));
+		
+
+		if(COMPARE_STRING(argv[1], "status")){
+			in->type = REQUEST_STATUS;
 		}
+		else if (COMPARE_STRING(argv[1],"proc-file")){
+
+			in->type = REQUEST_OPERATIONS;
+
+			Operations* ops = operations_new();
+
+			// read algorithms
+			for (int i = 5; i < argc; i++) {
+				Operation* o = calloc(1,sizeof(Operation));
+				operations_add(ops,str_to_operation(sv_dup(sv_to_upper(argv[i])),o));
+			}
+			SV in_s = sv_to_upper(argv[3]);
+			SV out_s = sv_to_upper(argv[4]);
+
+			in->req = (Request) {
+				.filepath_in = sv_dup(in_s),
+       			.filepath_out = sv_dup(out_s),
+       			.priority = atoi(argv[2]),
+       			.ops = ops
+			};
+		}
+		else goto errors;
+		
+		//get client pid
+		char pid_str[15];
+		pid_t main_pid = getpid(); 
+		snprintf(pid_str, 15, "%d", main_pid);
 
 		int status = 0;
 		WRITE_LITERAL(1, "Connecting to the server...\n");
-		
+		int main_fifo[2];
+		int opened = open_server(main_fifo,false);
 		if (!fork()) {
-			int server_fd = open(CLIENT_SERVER_PIPE, O_WRONLY);
-			if (server_fd == -1) {
-				perror(CLIENT_SERVER_PIPE);
+			if (!opened) {
+				perror("Server-Main-Fifo");
 				_exit(5);
 			}
-			write(server_fd, message, strlen(message));
-			close(server_fd);
+			str_write(pid_str,main_fifo[1]);
+			close(main_fifo[1]);
+			close(main_fifo[0]);
 			_exit(1);
 		}
 		
 		alarm(5); //Mata cliente caso a conexão demore mais de 5 segundos;
+
 		wait(&status);
 		while(WEXITSTATUS(status)!=1);
 		alarm(0); // Reset ao alarm para não matar o cliente caso este obtenha resposta;
+		close(main_fifo[1]);
+		close(main_fifo[0]);
+
+		int client_2_server[2];
+		bool clientserver = false;
+		alarm(15);
+		while(!clientserver){
+			clientserver = open_client2server(main_pid,client_2_server,false);
+			}
+		if (!fork()) {
+			if (!clientserver) {
+				perror("Client_2_Server");
+				_exit(5);
+			}
+			clientmsg_write(in,client_2_server[1]);
+			close(client_2_server[1]);
+			close(client_2_server[0]);
+			_exit(1);
+		}
+		alarm(5); //Mata cliente caso a conexão demore mais de 5 segundos;
+
+		wait(&status);
+		while(WEXITSTATUS(status)!=1);
+		alarm(0); // Reset ao alarm para não matar o cliente caso este obtenha resposta;
+		close(client_2_server[1]);
+		close(client_2_server[0]);
 		
 		WRITE_LITERAL(1, "Message sent to the server.\n");
 
 		// Resposta do servidor;
-		int server_response_fd = -1;
-		char server_response_pipe[32];
-		RESPONSE_PIPE(server_response_pipe,pid_str);
+		int server_response_fds[2];
+		bool response = false;
 
-		alarm(10); //Mata cliente caso a resposta demore mais de 10 segundos;
-		while(server_response_fd == -1)
-			server_response_fd = open(server_response_pipe, O_RDONLY);
+		alarm(15); //Mata cliente caso a resposta demore mais de 15 segundos;
+		while(!response)
+			 response = open_server2client(main_pid,server_response_fds,false);
 		alarm(0); // Reset ao alarm para não matar o cliente caso este obtenha resposta;
-		
-		char buf[10024];
-		ssize_t bytes_read = read(server_response_fd, buf, 10024);
-		snprintf(buf,32,"%ld bytes received.\n", bytes_read); 
-		WRITE_LITERAL(1, buf);
-		while(bytes_read) {
-			write(1, buf, bytes_read);
-			bytes_read = read(server_response_fd, buf, 10024);
-		}
 
-		close(server_response_fd);
-		unlink(server_response_pipe);
+		ServerMessage* out = calloc(1, sizeof(ServerMessage));
+		bool suc = servermsg_read(out,server_response_fds[0]);
+		if (suc){
+			servermsg_write(out,STDOUT_FILENO);
+		}
+		close(server_response_fds[0]);
+		close(server_response_fds[1]);
 	}
 	else
+errors:
 		print_help(); // Print clientside usage
 	
 	return 0;

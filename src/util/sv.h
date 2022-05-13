@@ -22,6 +22,8 @@ void sv_trim_whitespace(SV* sv);
 
 long sv_to_long(SV sv);
 
+SV sv_to_upper(const char* cstr);
+
 char* sv_dup(SV sv);
 
 #endif
