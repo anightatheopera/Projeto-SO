@@ -66,8 +66,8 @@ int main (int argc,char** argv) {
 				Operation* o = calloc(1,sizeof(Operation));
 				operations_add(ops,str_to_operation(sv_dup(sv_to_upper(argv[i])),o));
 			}
-			SV in_s = sv_to_upper(argv[3]);
-			SV out_s = sv_to_upper(argv[4]);
+			SV in_s = sv_from_cstr(argv[3]);
+			SV out_s = sv_from_cstr(argv[4]);
 
 			in->req = (Request) {
 				.filepath_in = sv_dup(in_s),
