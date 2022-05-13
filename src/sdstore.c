@@ -17,6 +17,8 @@
 #include "util/logger.h"
 #include "util/tasks.h"
 
+#define WRITE_LITERAL_DEBUG(fd, str) WRITE_LITERAL(fd, str)
+
 #define WRITE_LITERAL(fd, str) write(fd, str, sizeof(str))
 #define COMPARE_STRING(str1, str2) !strcmp(str1,str2)
 
@@ -64,7 +66,7 @@ int main (int argc,char** argv) {
 			// read algorithms
 			for (int i = 5; i < argc; i++) {
 				Operation* o = calloc(1,sizeof(Operation));
-				operations_add(ops,str_to_operation(sv_dup(sv_to_upper(argv[i])),o));
+				operations_add(ops,str_to_operation(argv[i],o));
 			}
 			SV in_s = sv_from_cstr(argv[3]);
 			SV out_s = sv_from_cstr(argv[4]);
@@ -81,7 +83,8 @@ int main (int argc,char** argv) {
 		//get client pid
 		char pid_str[15];
 		pid_t main_pid = getpid(); 
-		snprintf(pid_str, 15, "%d", main_pid);
+		snprintf(pid_str, 15, "%d\n", main_pid);
+		WRITE_LITERAL_DEBUG(STDOUT_FILENO,pid_str);
 
 		int status = 0;
 		WRITE_LITERAL(1, "Connecting to the server...\n");
@@ -92,7 +95,7 @@ int main (int argc,char** argv) {
 				perror("Server-Main-Fifo");
 				_exit(5);
 			}
-			str_write(pid_str,main_fifo[1]);
+			write(main_fifo[1],&main_pid,sizeof(pid_t));
 			close(main_fifo[1]);
 			close(main_fifo[0]);
 			_exit(1);
@@ -108,10 +111,11 @@ int main (int argc,char** argv) {
 
 		int client_2_server[2];
 		bool clientserver = false;
-		alarm(15);
+		alarm(10); //Mata cliente caso a conexão demore mais de 10 segundos;
 		while(!clientserver){
 			clientserver = open_client2server(main_pid,client_2_server,false);
 			}
+		alarm(0); // Reset ao alarm para não matar o cliente caso este obtenha resposta;
 		if (!fork()) {
 			if (!clientserver) {
 				perror("Client_2_Server");

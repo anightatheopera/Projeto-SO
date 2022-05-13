@@ -177,9 +177,9 @@ void test_client_request(){
     ClientMessage cmsg = { .type = REQUEST_OPERATIONS, .req = t->req };
 
     int ser2cli_pipe[2];
-    open_server2client(pid, ser2cli_pipe, true);
+    open_server2client(pid, ser2cli_pipe, false);
     int cli2ser_pipe[2];
-    open_client2server(pid, cli2ser_pipe, true);
+    open_client2server(pid, cli2ser_pipe, false);
     clientmsg_write(&cmsg, cli2ser_pipe[1]);
 
     int sv_pipe[2];
@@ -200,10 +200,10 @@ Task* accept_client(pid_t client){
     Task* task = calloc(1, sizeof(Task));
     task->client = client;
     
-    if(!open_client2server(client, task->cli2ser_pipe, false)){
+    if(!open_client2server(client, task->cli2ser_pipe, true)){
         goto err_failed_open_c2s;
     }
-    if(!open_server2client(client, task->ser2cli_pipe, false)){
+    if(!open_server2client(client, task->ser2cli_pipe, true)){
         goto err_failed_open_s2c;
     }
     fd_set_nonblocking(task->cli2ser_pipe[0]);
