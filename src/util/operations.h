@@ -3,10 +3,11 @@
 
 #include <stdbool.h>
 
-//coisas para dar menos trabalho nos prints
+/* Macros para dar print com uma certa formatação */
 #define OPERATION_MSET_FMT "{ %d, %d, %d, %d, %d, %d, %d }"
 #define OPERATION_MSET_ARG(mset) mset.vs[0], mset.vs[1], mset.vs[2], mset.vs[3], mset.vs[4], mset.vs[5], mset.vs[6]
 
+/* Tipos de operação possíveis */
 typedef enum {
     BCOMPRESS,
     BDECOMPRESS,
@@ -18,6 +19,7 @@ typedef enum {
     OPERATION_AMOUNT
 } Operation;
 
+/* Quantidade de cada operação */
 typedef struct {
     size_t vs[OPERATION_AMOUNT];
 } OperationMSet;

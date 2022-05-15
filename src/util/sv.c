@@ -9,7 +9,7 @@
 
 #include "sv.h"
 
-/* Return a String View with no contents */
+/* Retorna uma String View vazia */
 SV sv_empty(){
     return (SV) {
         .data = NULL,
@@ -17,7 +17,7 @@ SV sv_empty(){
     };
 }
 
-/* Load entire file from memory and return it in a String View */
+/* Carrega todos os conteúdos de um ficheiro para uma String View */
 SV sv_slurp_file(const char* filename){
     /* Open the file */
     int fd = open(filename, O_RDONLY);
@@ -25,7 +25,7 @@ SV sv_slurp_file(const char* filename){
         goto err_open;
     }
 
-    /* Get size of the file */
+    /* Obtém o tamanho do ficheiro */
     struct stat s;
     int status = fstat(fd, &s);
     size_t size = (size_t) s.st_size;
@@ -33,13 +33,13 @@ SV sv_slurp_file(const char* filename){
         goto err_stat;
     }
     
-    /* Allocate memory necessary to hold contents of the file */
+    /* Aloca a memória necessária para a String */
     char* data = (char*) malloc(size * sizeof(char));
     if(data == NULL){
         goto err_malloc;
     }
 
-    /* Read the file to data */
+    /* Lê o ficheiro para a String */
     ssize_t rd = read(fd, data, size);
     if(rd != (ssize_t) size){
         goto err_read;
@@ -61,7 +61,7 @@ err_open:
     return sv_empty();
 }
 
-/* Calculate String View from '\0' terminated string */
+/* Calcula uma String View através de uma String terminada em '\0' */
 SV sv_from_cstr(const char* cstr){
     return (SV) {
         .data = cstr,
@@ -69,14 +69,12 @@ SV sv_from_cstr(const char* cstr){
     };
 }
 
-/* Write a String View into the file descriptor */
+/* Escreve uma String View para um File Descriptor */
 ssize_t sv_write(SV sv, int fd){
-    if(sv.data != NULL){
-        return write(fd, sv.data, sv.count);
-    }
-    return -1;
+    return write(fd, sv.data, sv.count);
 }
 
+/* Corta carateres enquanto o predicado é verdadeiro, retornando uma String View com os carateres cortados */
 SV sv_chop_while(SV* sv, bool (*pred)(char)){
     SV ret = {
         .data = sv->data
@@ -92,10 +90,12 @@ SV sv_chop_while(SV* sv, bool (*pred)(char)){
     return ret;
 }
 
+/* Verifica se um carater não é igual a '\n' */
 bool bool_notnewline(char c){
     return c != '\n';
 }
 
+/* Corta uma linha do input, alterando o mesmo */
 SV sv_chop_line(SV* sv){
     SV ret = sv_chop_while(sv, bool_notnewline);
 
@@ -103,18 +103,20 @@ SV sv_chop_line(SV* sv){
         sv->data++;
         sv->count--;
     }
-
     return ret;
 }
 
+/* Verfica se um carater não é um espaço */
 bool bool_notspace(char c){
     return !isspace(c);
 }
 
+/* Corta uma palavra do input, alterando o mesmo */
 SV sv_chop_word(SV* sv){
     return sv_chop_while(sv, bool_notspace);
 }
 
+/* Retira os espaços à esquerda e à direita de uma String View */
 void sv_trim_whitespace(SV* sv){
     while(sv->count > 0 && isspace(*sv->data)){
         sv->data++;
@@ -126,6 +128,7 @@ void sv_trim_whitespace(SV* sv){
     }
 }
 
+/* Converte uma String View para um Long */
 long sv_to_long(SV sv){
     char* endptr = NULL;
     long ret = strtol(sv.data, &endptr, 10);
@@ -135,21 +138,7 @@ long sv_to_long(SV sv){
     return ret;
 }
 
-SV sv_to_upper(const char* cstr){
-    char sp[strlen(cstr)];
-    for(int i=0; strlen(cstr)>i; i++){
-        /*
-         * If current character is lowercase alphabet then
-         * convert it to uppercase.
-         */
-        if(cstr[i]>='a' && cstr[i]<='z')
-        {
-            sp[i] = cstr[i] - 32;
-        }
-    }
-    return sv_from_cstr(sp);
-}
-
+/* Duplica o String View, retornando o resultado numa String */
 char* sv_dup(SV sv){
     char* ret = malloc(sv.count + 1);
     strncpy(ret, sv.data, sv.count);

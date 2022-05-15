@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 
+/* String View: Mais fácil de manipular que Strings */
 typedef struct {
     const char* data;
     size_t count;

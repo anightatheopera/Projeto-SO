@@ -5,34 +5,42 @@
 
 #include "operations.h"
 
+/* Especifica o tipo de pedido enviado do cliente para o servidor */
 typedef enum {
     REQUEST_OPERATIONS,
     REQUEST_STATUS
 } ClientMessageType;
 
+/* Pedido de execução de operações do cliente */
 typedef struct {
-    const char* filepath_in;
-    const char* filepath_out;
-    Operations* ops;
-    int priority;
+    const char* filepath_in; // Caminho para o ficheiro que vai ser alterado
+    const char* filepath_out; // Caminho para o ficheiro alterado
+    Operations* ops; // Operations aplicadas ao ficheiro de input
+    int priority; // Prioridade do pedido
 } Request;
 
+/* Pedido enviado do cliente para o servidor */
 typedef struct {
-    ClientMessageType type;
+    ClientMessageType type; 
     Request req;
 } ClientMessage;
 
+/* Especifica o tipo de pedido enviado do servidor para o cliente */
 typedef enum {
     RESPONSE_STATUS,
     RESPONSE_PENDING,
     RESPONSE_STARTED,
-    RESPONSE_FINISHED
+    RESPONSE_FINISHED,
+    RESPONSE_CLOSED
 } ServerMessageType;
 
+/* Informação devolvida ao cliente após um pedido de estado (REQUEST_STATUS) */
 typedef struct {
-    size_t requests_being_processedq;
+    // TODO: adicionar mais informações (quais?)
+    size_t requests_being_processed;
 } ServerMessageStatus;
 
+/* Pedido enviado do servidor para o client */
 typedef struct {
     ServerMessageType type;
     ServerMessageStatus status;

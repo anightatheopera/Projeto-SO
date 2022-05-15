@@ -7,20 +7,20 @@
 #include "communication.h"
 #include "operations.h"
 
+/* Tarefa a ser executada a pedido de um cliente */
 typedef struct {
-    // o pedido que quer fazer
-    Request req;
-    // o numero de operaçoes que o pedido pede de cada operaçao
-    OperationMSet mset;
-    pid_t client;
-    int cli2ser_pipe[2];
-    int ser2cli_pipe[2];
-    pid_t handler;
+    Request req; // O pedido
+    OperationMSet mset; // O multi set indicativo da quantidade de operações pedidas
+    pid_t client; // PID do cliente 
+    int cli2ser_pipe[2]; // Pipe utilizado para o cliente comunicar com o servidor
+    int ser2cli_pipe[2]; // Pipe utilizado para o servidor comunicar com o cliente
+    pid_t handler; // PID do processo que está a executar a tarefa
 } Task;
 
+/* Estrutura de tarefas */
 typedef struct {
-    Task* vs[64];
-    size_t sz;
+    Task* vs[64]; // Array de Task
+    size_t sz; // Quantidade de Task no Array
 } Tasks;
 
 void tasks_add_running(Tasks* tasks, Task* newtask);

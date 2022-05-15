@@ -9,7 +9,7 @@
 #include "proc.h"
 #include "logger.h"
 
-/* função para ler de um processo */ 
+/* Cria um processo que lê de um File Descriptor */ 
 int proc_reader(Proc* proc, int fd){
     int pipe_out[2];
     assert(pipe(pipe_out) == 0);
@@ -41,7 +41,7 @@ int proc_reader(Proc* proc, int fd){
     }
 }
 
-/* função para escrever para um processo */ 
+/* Cria um processo que lê do File Descriptor in e escreve-o no File Descriptor fd */ 
 int proc_writer(Proc* proc, int fd, int in){
     pid_t pid = fork();
     if (pid < 0){
@@ -69,8 +69,7 @@ int proc_writer(Proc* proc, int fd, int in){
     }
 }
 
-/* executa um processo */ 
-// TODO: ERROR HANDLING
+/* Cria um processo que executa um programa contido no pathname */ 
 int proc_exec_in(Proc* proc, const char* pathname, int in){
     int pipe_out[2];
     assert(pipe(pipe_out) == 0);
@@ -100,17 +99,18 @@ int proc_exec_in(Proc* proc, const char* pathname, int in){
     }
 }
 
+/* Fecha um File Descriptor */
 void proc_close_out(Proc* proc){
     close(proc->out);
     proc->out = -1;
 }
 
-/* espera que o processo acabe */
+/* Espera que um dado processo termine */
 pid_t proc_wait(Proc* proc, int* wstatus, int options){
     return waitpid(proc->pid, wstatus, options);
 }
 
-/* executa as operaçoes e retorna os processos gerados */
+/* Executa as operações recebendo também os caminhos para os ficheiros de input e output e retorna os processos gerados */
 Proc* procs_run_operations(const char* filepath_prefix, const char* filepath_in, const char* filepath_out, Operations* ops){
     
     int fd_in = open(filepath_in, O_RDONLY);

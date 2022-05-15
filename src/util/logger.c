@@ -5,9 +5,7 @@
 #define LOGGER_BUFFER_SIZE 1024
 static char logger_buffer[LOGGER_BUFFER_SIZE];
 
-/*
-    imprime uma string formatada para o STDOUT (semelhante ao 'printf')
-*/
+/* Imprime uma string formatada para o STDOUT (semelhante ao 'printf') */
 void logger_default(const char *restrict format, ...){
 	va_list ap;
 	va_start(ap, format);

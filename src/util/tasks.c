@@ -2,6 +2,7 @@
 
 #include "tasks.h"
 
+/* Remove uma Task de um certo índice de uma estrutura Tasks */
 Task* tasks_remove(Tasks* tasks, size_t ind){
     Task* ret = tasks->vs[ind];
     tasks->sz--;
@@ -11,12 +12,13 @@ Task* tasks_remove(Tasks* tasks, size_t ind){
     return ret;
 }
 
+/* Adiciona uma Task à estrutura */
 void tasks_add_running(Tasks* tasks, Task* task){
     assert(tasks->sz < 63);
     tasks->vs[tasks->sz++] = task;
 }
 
-
+/* Remove uma Task que tem como handler o PID dado como argumento */
 Task* tasks_remove_running(Tasks* tasks, pid_t handler){
     for(size_t i = 0; i < tasks->sz; i++){
         if(tasks->vs[i]->handler == handler){
@@ -26,6 +28,7 @@ Task* tasks_remove_running(Tasks* tasks, pid_t handler){
     return NULL;
 }
 
+/* Adiciona uma Task à estrutura conforme a sua prioridade (Tasks com mais prioridade ficam num indice mais baixo) */
 void tasks_enqueue(Tasks* tasks, Task* task){
     assert(tasks->sz < 63);
     size_t i = tasks->sz;
