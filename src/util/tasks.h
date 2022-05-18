@@ -23,6 +23,8 @@ typedef struct {
     size_t sz; // Quantidade de Task no Array
 } Tasks;
 
+void task_free(Task* task);
+
 void tasks_add_running(Tasks* tasks, Task* newtask);
 Task* tasks_remove_running(Tasks* tasks, pid_t handler);
 

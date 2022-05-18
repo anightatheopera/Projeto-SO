@@ -3,14 +3,14 @@
 
 #include <unistd.h>
 
-#define logger_writeln(fmt) logger_default(fmt "\n")
-#define logger_writeln_fmt(fmt, ...) logger_default(fmt "\n", __VA_ARGS__)
+#define logger_write(fmt) logger_default(fmt)
+#define logger_write_fmt(fmt, ...) logger_default(fmt, __VA_ARGS__)
 
 #define logger_log(fmt) logger_default("[LOG][%d] " fmt "\n", getpid())
 #define logger_log_fmt(fmt, ...) logger_default("[LOG][%d] " fmt "\n", getpid(), __VA_ARGS__)
 
 
-#ifdef LOGGER_DEBUG
+#ifdef DEBUG
 #define logger_debug(fmt) logger_default("[DEBUG][%d] " fmt "\n", getpid())
 #define logger_debug_fmt(fmt, ...) logger_default("[DEBUG][%d] " fmt "\n", getpid(), __VA_ARGS__)
 #else

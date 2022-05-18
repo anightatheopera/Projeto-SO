@@ -2,6 +2,13 @@
 
 #include "tasks.h"
 
+void task_free(Task* task){
+    request_destroy(&task->req);
+    pipe_close(task->cli2ser_pipe);
+    pipe_close(task->ser2cli_pipe);
+    free(task);
+}
+
 /* Remove uma Task de um certo índice de uma estrutura Tasks */
 Task* tasks_remove(Tasks* tasks, size_t ind){
     Task* ret = tasks->vs[ind];
@@ -39,4 +46,3 @@ void tasks_enqueue(Tasks* tasks, Task* task){
     tasks->vs[i] = task;
     tasks->sz++;
 }
-

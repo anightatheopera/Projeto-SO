@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 #include "communication.h"
+#include "logger.h"
 
 #define SERVER_DIR "/tmp/sdstored/"
 #define SERVER_PATH SERVER_DIR "server"
@@ -49,6 +50,12 @@ bool request_read(Request* req, int fd){
         && read(fd, &req->priority, sizeof(req->priority)) == sizeof(req->priority);
 }
 
+void request_destroy(Request* req){
+    free(req->filepath_in);
+    free(req->filepath_out);
+    operations_free(req->ops);
+}
+
 /* Escreve um ClientMessage para um File Descriptor */
 bool clientmsg_write(ClientMessage* cmsg, int fd){
     switch (cmsg->type){
@@ -74,22 +81,79 @@ bool clientmsg_read(ClientMessage* cmsg, int fd){
     return request_read(&cmsg->req, fd);
 }
 
+bool requests_write(Request* vs, size_t sz, int fd){
+    bool ret =  write(fd, &sz, sizeof(sz)) == sizeof(sz);
+    for(size_t i = 0; i < sz; i++){
+        ret = ret && request_write(&vs[i], fd);
+    }
+    return ret;
+}
+
+bool requests_read(Request** vs, size_t* sz, int fd){
+    bool ret = read(fd, sz, sizeof(*sz)) == sizeof(*sz);
+    *vs = malloc(sizeof(Request) * (*sz));
+    ret = ret && *vs != NULL;
+    for(size_t i = 0; i < *sz; i++){
+        ret = ret && request_read((*vs) + i, fd);
+    }
+    return ret;
+}
+
+bool servermsgstatus_write(ServerMessageStatus* status, int fd){
+    bool ret = requests_write(status->running_tasks, status->running_tasks_sz, fd);
+    ret = ret && requests_write(status->pending_tasks, status->pending_tasks_sz, fd);
+    ret = ret && write(fd, &status->running_ops, sizeof(OperationMSet)) == sizeof(OperationMSet);
+    ret = ret && write(fd, &status->maximum_ops, sizeof(OperationMSet)) == sizeof(OperationMSet);
+    return ret;
+}
+
+ServerMessageStatus* servermsgstatus_read(int fd){
+    ServerMessageStatus* ret = malloc(sizeof(ServerMessageStatus));
+    if(ret == NULL){
+        goto err_alloc;
+    }
+
+    if(!requests_read(&ret->running_tasks, &ret->running_tasks_sz, fd)){
+        goto err_read_running_tasks;
+    }
+
+    if(!requests_read(&ret->pending_tasks, &ret->pending_tasks_sz, fd)){
+        goto err_read_pending_tasks;
+    }
+
+    if(read(fd, &ret->running_ops, sizeof(OperationMSet)) != sizeof(OperationMSet)){
+        goto err_read_ops;
+    }
+
+    if(read(fd, &ret->maximum_ops, sizeof(OperationMSet)) != sizeof(OperationMSet)){
+        goto err_read_ops;
+    }
+
+    return ret;
+
+err_read_ops:
+    free(ret->pending_tasks);
+err_read_pending_tasks:
+    free(ret->running_tasks);
+err_read_running_tasks:
+err_alloc:
+    return NULL;
+}
+
 /* Escreve um ServerMessage para um File Descriptor */
 bool servermsg_write(ServerMessage* smsg, int fd){
-    bool ret = true;
-    ret = ret && write(fd, &smsg->type, sizeof(smsg->type)) == sizeof(smsg->type);
+    bool ret = write(fd, &smsg->type, sizeof(smsg->type)) == sizeof(smsg->type);
     if(smsg->type == RESPONSE_STATUS){
-        return ret && write(fd, &smsg->status, sizeof(smsg->status)) == sizeof(smsg->status);
+        return ret && servermsgstatus_write(smsg->status, fd);
     }
     return ret;
 }
 
 /* Lê um ServerMessage de um File Descriptor */
 bool servermsg_read(ServerMessage* smsg, int fd){
-    bool ret = true;
-    ret = ret && read(fd, &smsg->type, sizeof(smsg->type)) == sizeof(smsg->type);
+    bool ret = read(fd, &smsg->type, sizeof(smsg->type)) == sizeof(smsg->type);
     if(smsg->type == RESPONSE_STATUS){
-        return ret && read(fd, &smsg->status, sizeof(smsg->status)) == sizeof(smsg->status);
+        return ret && (smsg->status = servermsgstatus_read(fd)) != NULL;
     }
     return ret;
 }

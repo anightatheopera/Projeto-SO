@@ -16,6 +16,7 @@
 #include "util/communication.h"
 #include "util/logger.h"
 #include "util/tasks.h"
+#include "util/logger.h"
 
 #define WRITE_LITERAL_DEBUG(fd, str) WRITE_LITERAL(fd, str)
 
@@ -81,10 +82,8 @@ int main (int argc,char** argv) {
 		else goto errors;
 		
 		//get client pid
-		char pid_str[15];
 		pid_t main_pid = getpid(); 
-		snprintf(pid_str, 15, "%d\n", main_pid);
-		WRITE_LITERAL_DEBUG(STDOUT_FILENO,pid_str);
+		logger_write_fmt("%d\n", main_pid);
 
 		int status = 0;
 		WRITE_LITERAL(1, "Connecting to the server...\n");

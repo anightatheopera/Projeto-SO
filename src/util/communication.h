@@ -13,8 +13,8 @@ typedef enum {
 
 /* Pedido de execução de operações do cliente */
 typedef struct {
-    const char* filepath_in; // Caminho para o ficheiro que vai ser alterado
-    const char* filepath_out; // Caminho para o ficheiro alterado
+    char* filepath_in; // Caminho para o ficheiro que vai ser alterado
+    char* filepath_out; // Caminho para o ficheiro alterado
     Operations* ops; // Operations aplicadas ao ficheiro de input
     int priority; // Prioridade do pedido
 } Request;
@@ -31,23 +31,31 @@ typedef enum {
     RESPONSE_PENDING,
     RESPONSE_STARTED,
     RESPONSE_FINISHED,
-    RESPONSE_CLOSED
+    RESPONSE_TERMINATED
 } ServerMessageType;
 
 /* Informação devolvida ao cliente após um pedido de estado (REQUEST_STATUS) */
 typedef struct {
-    // TODO: adicionar mais informações (quais?)
-    size_t requests_being_processed;
+    Request* running_tasks;
+    size_t running_tasks_sz;
+    Request* pending_tasks;
+    size_t pending_tasks_sz;
+    OperationMSet running_ops;
+    OperationMSet maximum_ops;
 } ServerMessageStatus;
 
 /* Pedido enviado do servidor para o client */
 typedef struct {
     ServerMessageType type;
-    ServerMessageStatus status;
+    ServerMessageStatus* status;
 } ServerMessage;
 
 bool str_write(const char* str, int fd);
 char* str_read(int fd);
+
+bool request_write(Request* req, int fd);
+bool request_read(Request* req, int fd);
+void request_destroy(Request* req);
 
 bool clientmsg_write(ClientMessage* cmsg, int fd);
 bool clientmsg_read(ClientMessage* cmsg, int fd);
