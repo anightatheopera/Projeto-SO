@@ -161,6 +161,11 @@ bool servermsg_read(ServerMessage* smsg, int fd){
 /* Altera as flags de um File Descriptor para o colocar como non-blocking */
 int fd_set_nonblocking(int fd){
     int flags = fcntl(fd, F_GETFL);
+    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
+
+int fd_set_blocking(int fd){
+    int flags = fcntl(fd, F_GETFL);
     return fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 }
 
@@ -176,7 +181,7 @@ bool open_fifo(int pipefd[2], bool create, char* filename){
         close(pipefd[0]);
         return false;
     }
-    fd_set_nonblocking(pipefd[0]);
+    fd_set_blocking(pipefd[0]);
     return true;
 }
 

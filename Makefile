@@ -1,4 +1,4 @@
-CFLAGS=-Wall -Wextra -Wdouble-promotion -Wconversion -Wsign-conversion -std=c11 -g -O0 -DDEBUG
+CFLAGS=-Wall -Wextra -Wdouble-promotion -Wconversion -Wsign-conversion -std=c11 -g -O0 #-DDEBUG
 
 CFILES := $(wildcard src/util/*.c)
 HFILES := $(wildcard src/util/*.h)

@@ -124,21 +124,26 @@ void sigterm_handler(int signum){
     attempt_shutdown();
 }
 
-// da informaçoes sobre o coiso da folha parou 
-void stopped_client_handler(int signum) {
-    (void) signum;
-
-    int pid = waitpid(-1, NULL, 0);
-    (void) pid;
-    logger_debug_fmt("child %d has stopped", pid);
-
-    Task* task = tasks_remove_running(&server_state.running, pid);
+void remove_handler(pid_t handler){
+    Task* task = tasks_remove_running(&server_state.running, handler);
     assert(task != NULL);
     op_mset_sub(&server_state.curr_insts, &task->mset);
     task_free(task);
+}
 
-    signal(SIGCHLD, stopped_client_handler);
+void check_dead_handlers(int signum) {
+    signal(SIGCHLD, check_dead_handlers);
+    signal(SIGALRM, check_dead_handlers);
+    alarm(5);
+    (void) signum;
 
+    pid_t handler;
+    while((handler = waitpid(-1, NULL, WNOHANG)) > 0){
+        //logger_debug_fmt("child %d has stopped", pid);
+        remove_handler(handler);
+    }
+
+    Task* task;
     while((task = next_runnable_task()) != NULL){
         spawn_client_handler(task);
     }
@@ -219,6 +224,7 @@ Task* accept_client(pid_t client){
         goto err_failed_open_s2c;
     }
     fd_set_nonblocking(task->cli2ser_pipe[0]);
+    fd_set_nonblocking(task->ser2cli_pipe[1]);
     
     if(server_state.terminated){
         ServerMessage smsg = (ServerMessage) { .type = RESPONSE_TERMINATED };
@@ -270,7 +276,7 @@ int main(int argc, char** argv){
     parse_config(argv[1]);
     logger_debug_fmt("max insts: " OPERATION_MSET_FMT, OPERATION_MSET_ARG(server_configuration.max_insts));
 
-    signal(SIGCHLD, stopped_client_handler);
+    signal(SIGCHLD, check_dead_handlers);
     signal(SIGTERM, sigterm_handler);
 
     assert(open_server(server_state.sv_pipe, true));

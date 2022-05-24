@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #include <unistd.h>
 #include <limits.h>
@@ -10,6 +11,12 @@
 
 #include "util/communication.h"
 #include "util/logger.h"
+
+void timeout(int signum){
+	(void) signum;
+	logger_write("Response from server timedout.\n");
+	exit(1);
+}
 
 char* shift(int* argc, char*** argv){
 	if(*argc == 0){
@@ -41,6 +48,7 @@ void open_pipes(pid_t pid, int sv[2], int sv2c[2], int c2sv[2]){
 
 void send_operations_request(int c2sv[2], int argc, char** argv, char* program){
 	Request req;
+	req.priority = 0;
 	req.filepath_in = shift(&argc, &argv);
 	if(req.filepath_in[1] == '\0' && req.filepath_in[0] - '0' >= 0 && req.filepath_in[0] - '0' <= 5){
 		req.priority = req.filepath_in[0] - '0';
@@ -100,7 +108,9 @@ void print_status(ServerMessageStatus* status){
 
 void handle_replies(int sv2c[2]){
 	ServerMessage smsg;
+	alarm(2);
 	while(servermsg_read(&smsg, sv2c[0])){
+		alarm(0);
 		switch (smsg.type){
 		case RESPONSE_STARTED:
 			logger_write("The request has been started.\n");
@@ -122,6 +132,7 @@ void handle_replies(int sv2c[2]){
 }
 
 int main(int argc, char** argv){
+	signal(SIGALRM, timeout);
 	char* program = shift(&argc, &argv);
 	pid_t pid = getpid();
 	if(argc == 0){
