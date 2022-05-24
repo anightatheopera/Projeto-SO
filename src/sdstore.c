@@ -5,156 +5,140 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <assert.h>
-#include <errno.h>
-#include <signal.h>
 #include <stdbool.h>
-#include <sys/wait.h>
 #include <string.h>
 
-#include "util/sv.h"
-#include "util/proc.h"
 #include "util/communication.h"
 #include "util/logger.h"
-#include "util/tasks.h"
-#include "util/logger.h"
 
-#define WRITE_LITERAL_DEBUG(fd, str) WRITE_LITERAL(fd, str)
-
-#define WRITE_LITERAL(fd, str) write(fd, str, sizeof(str))
-#define COMPARE_STRING(str1, str2) !strcmp(str1,str2)
-
-
-void print_help(){
-	WRITE_LITERAL(1, "\nUsage : ./sdstore <proc-file | status>\n\n");
-	WRITE_LITERAL(1, "\tProcess File \n\t\t./sdstore proc-file <priority> <input | output> < ALGORITHMS>\n\n");
-	WRITE_LITERAL(1, "\tALGORITHMS\n\t\t - bcompress | bdecompress   -> Compress or Decompress file in BZIP format\n\t\t - gcompress | gdecompress   -> Compress or Decompress file in GZIP format\n\t\t - encrypt   | decrypt       -> Encrypt or Decrypt file\n\t\t - nop                       -> Copy the data without change (copy)\n\n");
-	WRITE_LITERAL(1, "\tStatus \n\t\t./sdstore status\n");
-}
-
-void alarmhandler(int signum) {
-	WRITE_LITERAL(1, "Timeout trying to reach the server.\n");
-	exit(signum);
-}
-
-int main (int argc,char** argv) {
-	signal(SIGALRM, alarmhandler); // error handling connection timeout
-	
-	if (argc >= 2 && (COMPARE_STRING(argv[1], "status") || COMPARE_STRING(argv[1],"proc-file"))){
-
-		// abrir main pipe;
-		//enviar o PID
-		// abrir pipe pidtoserver
-		// enviar mensagem com o formato ClientMessage
-		// abrir pipe resposta
-		// ler resposta com o formato ServerMessage
-		// transformar o formato em algo readable
-
-		//alarms caso não consiga conectar
-
-
-		ClientMessage* in = calloc(1, sizeof(ClientMessage));
-		
-
-		if(COMPARE_STRING(argv[1], "status")){
-			in->type = REQUEST_STATUS;
-		}
-		else if (COMPARE_STRING(argv[1],"proc-file")){
-
-			in->type = REQUEST_OPERATIONS;
-
-			Operations* ops = operations_new();
-
-			// read algorithms
-			for (int i = 5; i < argc; i++) {
-				Operation* o = calloc(1,sizeof(Operation));
-				operations_add(ops,str_to_operation(argv[i],o));
-			}
-			SV in_s = sv_from_cstr(argv[3]);
-			SV out_s = sv_from_cstr(argv[4]);
-
-			in->req = (Request) {
-				.filepath_in = sv_dup(in_s),
-       			.filepath_out = sv_dup(out_s),
-       			.priority = atoi(argv[2]),
-       			.ops = ops
-			};
-		}
-		else goto errors;
-		
-		//get client pid
-		pid_t main_pid = getpid(); 
-		logger_write_fmt("%d\n", main_pid);
-
-		int status = 0;
-		WRITE_LITERAL(1, "Connecting to the server...\n");
-		int main_fifo[2];
-		int opened = open_server(main_fifo,false);
-		if (!fork()) {
-			if (!opened) {
-				perror("Server-Main-Fifo");
-				_exit(5);
-			}
-			write(main_fifo[1],&main_pid,sizeof(pid_t));
-			close(main_fifo[1]);
-			close(main_fifo[0]);
-			_exit(1);
-		}
-		
-		alarm(5); //Mata cliente caso a conexão demore mais de 5 segundos;
-
-		wait(&status);
-		while(WEXITSTATUS(status)!=1);
-		alarm(0); // Reset ao alarm para não matar o cliente caso este obtenha resposta;
-		close(main_fifo[1]);
-		close(main_fifo[0]);
-
-		int client_2_server[2];
-		bool clientserver = false;
-		alarm(10); //Mata cliente caso a conexão demore mais de 10 segundos;
-		while(!clientserver){
-			clientserver = open_client2server(main_pid,client_2_server,false);
-			}
-		alarm(0); // Reset ao alarm para não matar o cliente caso este obtenha resposta;
-		if (!fork()) {
-			if (!clientserver) {
-				perror("Client_2_Server");
-				_exit(5);
-			}
-			clientmsg_write(in,client_2_server[1]);
-			close(client_2_server[1]);
-			close(client_2_server[0]);
-			_exit(1);
-		}
-		alarm(5); //Mata cliente caso a conexão demore mais de 5 segundos;
-
-		wait(&status);
-		while(WEXITSTATUS(status)!=1);
-		alarm(0); // Reset ao alarm para não matar o cliente caso este obtenha resposta;
-		close(client_2_server[1]);
-		close(client_2_server[0]);
-		
-		WRITE_LITERAL(1, "Message sent to the server.\n");
-
-		// Resposta do servidor;
-		int server_response_fds[2];
-		bool response = false;
-
-		alarm(15); //Mata cliente caso a resposta demore mais de 15 segundos;
-		while(!response)
-			 response = open_server2client(main_pid,server_response_fds,false);
-		alarm(0); // Reset ao alarm para não matar o cliente caso este obtenha resposta;
-
-		ServerMessage* out = calloc(1, sizeof(ServerMessage));
-		bool suc = servermsg_read(out,server_response_fds[0]);
-		if (suc){
-			servermsg_write(out,STDOUT_FILENO);
-		}
-		close(server_response_fds[0]);
-		close(server_response_fds[1]);
+char* shift(int* argc, char*** argv){
+	if(*argc == 0){
+		return NULL;
 	}
-	else
-errors:
-		print_help(); // Print clientside usage
+	*argc -= 1;
+	char* arg = **argv;
+	*argv += 1;
+	return arg;
+}
+
+void help(char* program){
+	logger_write("Usage:\n");
+	logger_write_fmt("\t%s status\n", program);
+	logger_write_fmt("\t%s [PRIORITY]? [INPUT_FILE] [OUTPUT_FILE] [OPERATION]...\n", program);
+	logger_write("Operations:\n");
+	for(int i = 0; i < OPERATION_AMOUNT; i++){
+		logger_write_fmt("\t%-20s%s\n", operation_to_str(i), operation_description(i));
+	}
+	exit(1);
+}
+
+void open_pipes(pid_t pid, int sv[2], int sv2c[2], int c2sv[2]){
+	if(!open_server(sv, false) || !open_client2server(pid, c2sv, true) || !open_server2client(pid, sv2c, true)){
+		logger_write("Failed to open the pipes to the server.\n");
+		exit(1);
+	}
+}
+
+void send_operations_request(int c2sv[2], int argc, char** argv, char* program){
+	Request req;
+	req.filepath_in = shift(&argc, &argv);
+	if(req.filepath_in[1] == '\0' && req.filepath_in[0] - '0' >= 0 && req.filepath_in[0] - '0' <= 5){
+		req.priority = req.filepath_in[0] - '0';
+		req.filepath_in = shift(&argc, &argv);
+	}
+
+	req.filepath_out = shift(&argc, &argv);
+
+	if(argc <= 0){
+		logger_write("Not enough arguments given.\n");
+		help(program);
+	}
+
+	req.ops = operations_new();
+	while(argc > 0){
+		char* op_name = shift(&argc, &argv); 
+		Operation op;
+		if(!str_to_operation(op_name, &op)){
+			logger_write_fmt("Invalid operation given '%s'.\n", op_name);
+			help(program);
+		}
+    	operations_add(req.ops, op);
+	}
+
+    ClientMessage cmsg = { .type = REQUEST_OPERATIONS, .req = req };
+    assert(clientmsg_write(&cmsg, c2sv[1]));
+}
+
+void send_status_request(int c2sv[2]){
+	ClientMessage cmsg = { .type = REQUEST_STATUS };
+    assert(clientmsg_write(&cmsg, c2sv[1]));
+}
+
+void print_requests(Request* reqs, size_t sz){
+    for(size_t i = 0; i < sz; i++){
+        logger_write_fmt("- %d %s %s", reqs[i].priority, reqs[i].filepath_in, reqs[i].filepath_out);
+		size_t ops_sz = operations_size(reqs[i].ops);
+        for(size_t op_i = 0; op_i < ops_sz; op_i++){
+			logger_write_fmt(" %s", operation_to_str(operations_get(reqs[i].ops, op_i)));
+        }
+        logger_write("\n");
+    }
+}
+
+void print_status(ServerMessageStatus* status){
+    logger_write("Running Tasks:\n");
+	print_requests(status->running_tasks, status->running_tasks_sz);
+
+	logger_write("\nPending Tasks:\n");
+	print_requests(status->pending_tasks, status->pending_tasks_sz);
+
+	logger_write("\nOperations:\n");
+	for(int i = 0; i < OPERATION_AMOUNT; i++){
+	    logger_write_fmt("- %s: %d/%d (running/max)\n", operation_to_str(i), status->running_ops.vs[i], status->maximum_ops.vs[i]);
+	}
+}
+
+void handle_replies(int sv2c[2]){
+	ServerMessage smsg;
+	while(servermsg_read(&smsg, sv2c[0])){
+		switch (smsg.type){
+		case RESPONSE_STARTED:
+			logger_write("The request has been started.\n");
+			break;
+		case RESPONSE_PENDING:
+			logger_write("The request is now pending.\n");
+			break;
+		case RESPONSE_STATUS:
+			print_status(smsg.status);
+			return;
+		case RESPONSE_TERMINATED:
+			logger_write("Server has been terminated.\n");
+			return;
+		case RESPONSE_FINISHED:
+			logger_write("Request has been finished.\n");
+			return;
+		}
+	}
+}
+
+int main(int argc, char** argv){
+	char* program = shift(&argc, &argv);
+	pid_t pid = getpid();
+	if(argc == 0){
+		help(program);
+	}
+
+	int sv[2], sv2c[2], c2sv[2];
+	open_pipes(pid, sv, sv2c, c2sv);
+	if(!strcmp(*argv, "status")){
+		send_status_request(c2sv);
+	} else {
+		send_operations_request(c2sv, argc, argv, program);
+	}
+
+    write(sv[1], &pid, sizeof(pid_t));
+
+	handle_replies(sv2c);
 	
 	return 0;
 }

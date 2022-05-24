@@ -8,15 +8,16 @@
 
 /* Meta dados relativos a cada operação */
 static struct {
-    char* name;
+    const char* name;
+    const char* desc;
 } operation_meta[] = {
-    { .name = "bcompress"   },
-    { .name = "bdecompress" },
-    { .name = "gcompress"   },
-    { .name = "gdecompress" },
-    { .name = "encrypt"     },
-    { .name = "decrypt"     },
-    { .name = "nop"         } 
+    { .name = "bcompress", .desc = "Compress file in BZIP format" },
+    { .name = "bdecompress", .desc = "Decompress file in BZIP format" },
+    { .name = "gcompress", .desc = "Compress file in GZIP format"   },
+    { .name = "gdecompress", .desc = "Descompress file in GZIP format" },
+    { .name = "encrypt", .desc = "Encrypt file" },
+    { .name = "decrypt", .desc = "Decript file" },
+    { .name = "nop", .desc = "Do not modify the data" } 
 };
 
 /* Transforma uma String numa Operation */
@@ -34,6 +35,12 @@ bool str_to_operation(const char* str, Operation* op){
 const char* operation_to_str(Operation op){
     assert(op < OPERATION_AMOUNT);
     return operation_meta[op].name;
+}
+
+/* Retorna a descriçao de uma operacao */
+const char* operation_description(Operation op){
+    assert(op < OPERATION_AMOUNT);
+    return operation_meta[op].desc;
 }
 
 /* Número máximo de Operation */

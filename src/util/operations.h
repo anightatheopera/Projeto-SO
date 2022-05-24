@@ -27,6 +27,7 @@ typedef struct {
 
 bool str_to_operation(const char* str, Operation* op);
 const char* operation_to_str(Operation op);
+const char* operation_description(Operation op);
 
 typedef struct operations Operations;
 

@@ -55,27 +55,6 @@ static ServerState server_state = {
     .terminated = false
 };
 
-char *strdup(const char *s);
-Task* generate_debug_task(){
-    Operations* ops =  operations_new();
-    operations_add(ops, BCOMPRESS);
-    operations_add(ops, BDECOMPRESS);
-    operations_add(ops, NOP);
-    //operations_add(ops, NOP);
-
-    Task* ret = malloc(sizeof(Task));
-
-    ret->req = (Request) {
-       .filepath_in = strdup("README.md"),
-       .filepath_out = strdup("/tmp/test"),
-       .priority = 0,
-       .ops = ops
-    };
-    ret->mset = operations_to_mset(ops);
-
-    return ret;
-}
-
 bool can_run_task(Task* task){
     return op_mset_lte(&server_state.curr_insts, &task->mset, &server_configuration.max_insts);
 }
@@ -120,7 +99,7 @@ void spawn_client_handler(Task* task){
         }
         exit(0);
     } else {
-        logger_debug_fmt("running new task with operations " OPERATION_MSET_FMT, OPERATION_MSET_ARG(task->mset));
+        logger_debug_fmt("running new task with operations " OPERATION_MSET_FMT " and priority %d", OPERATION_MSET_ARG(task->mset), task->req.priority);
 
         op_mset_add(&server_state.curr_insts, &task->mset);
         tasks_add_running(&server_state.running, task);
@@ -200,86 +179,6 @@ void parse_config(const char* config_filepath){
     free((void*) conf_str);
 }
 
-void test_client_request(){
-    pid_t pid = getpid();
-    Task* t = generate_debug_task();
-    ClientMessage cmsg = { .type = REQUEST_OPERATIONS, .req = t->req };
-
-    int ser2cli_pipe[2];
-    open_server2client(pid, ser2cli_pipe, true);
-    int cli2ser_pipe[2];
-    open_client2server(pid, cli2ser_pipe, true);
-    clientmsg_write(&cmsg, cli2ser_pipe[1]);
-
-    int sv_pipe[2];
-    open_server(sv_pipe, false);
-    write(sv_pipe[1], &pid, sizeof(pid_t));
-    
-    ServerMessage smsg;
-    while(servermsg_read(&smsg, ser2cli_pipe[0])){
-        logger_debug_fmt("recv message %d", smsg.type);
-        if(smsg.type == RESPONSE_FINISHED || smsg.type == RESPONSE_TERMINATED){
-            exit(0);
-        }
-    }
-    exit(-1);
-}
-
-void test_client_status(){
-    pid_t pid = getpid();
-    ClientMessage cmsg = { .type = REQUEST_STATUS };
-
-    int ser2cli_pipe[2];
-    open_server2client(pid, ser2cli_pipe, true);
-    int cli2ser_pipe[2];
-    open_client2server(pid, cli2ser_pipe, true);
-    clientmsg_write(&cmsg, cli2ser_pipe[1]);
-
-    int sv_pipe[2];
-    open_server(sv_pipe, false);
-    write(sv_pipe[1], &pid, sizeof(pid_t));
-    
-    ServerMessage smsg;
-    while(servermsg_read(&smsg, ser2cli_pipe[0])){
-        logger_debug_fmt("recv message %d", smsg.type);
-        if(smsg.type == RESPONSE_STATUS){
-            logger_write("Running Tasks:\n");
-            for(size_t i = 0; i < smsg.status->running_tasks_sz; i++){
-                logger_write_fmt("- %d %s %s",
-                    smsg.status->running_tasks[i].priority,
-                    smsg.status->running_tasks[i].filepath_in,
-                    smsg.status->running_tasks[i].filepath_out);
-                for(size_t i = 0; i < operations_size(smsg.status->running_tasks->ops); i++){
-                    logger_write_fmt(" %s", operation_to_str(operations_get(smsg.status->running_tasks->ops, i)));
-                }
-                logger_write("\n");
-            }
-            logger_write("\nPending Tasks:\n");
-            for(size_t i = 0; i < smsg.status->pending_tasks_sz; i++){
-                logger_write_fmt("- %d %s %s",
-                    smsg.status->pending_tasks[i].priority,
-                    smsg.status->pending_tasks[i].filepath_in,
-                    smsg.status->pending_tasks[i].filepath_out);
-                for(size_t i = 0; i < operations_size(smsg.status->pending_tasks->ops); i++){
-                    logger_write_fmt(" %s", operation_to_str(operations_get(smsg.status->pending_tasks->ops, i)));
-                }
-                logger_write("\n");
-            }
-            logger_write("\nOperations:\n");
-            for(int i = 0; i < OPERATION_AMOUNT; i++){
-                logger_write_fmt("- %s: %d/%d (running/max)\n", operation_to_str(i), smsg.status->running_ops.vs[i], smsg.status->maximum_ops.vs[i]);
-            }
-            exit(0);
-        }
-        if(smsg.type == RESPONSE_FINISHED || smsg.type == RESPONSE_TERMINATED){
-            exit(0);
-        }
-    }
-    logger_log("Could not read message.");
-    exit(-1);
-}
-
-
 void send_status_response(int fd){
     ServerMessage smsg = (ServerMessage) { .type = RESPONSE_STATUS };
     smsg.status = malloc(sizeof(ServerMessageStatus));
@@ -304,6 +203,9 @@ void send_status_response(int fd){
     free(smsg.status->pending_tasks);
     free(smsg.status->running_tasks);
     free(smsg.status);
+
+    smsg.type = RESPONSE_FINISHED;
+    servermsg_write(&smsg, fd);
 }
 
 Task* accept_client(pid_t client){
@@ -358,11 +260,6 @@ err_failed_open_c2s:
 
 /* Main */
 int main(int argc, char** argv){
-    if(argc == 2 && !strcmp(argv[1], "--test-client")){
-        test_client_request();
-    } else if(argc == 2 && !strcmp(argv[1], "--test-status")){
-        test_client_status();
-    }
     (void) server_state;
     if(argc != 3){
         usage(argc, argv);
