@@ -21,7 +21,7 @@ Task* tasks_remove(Tasks* tasks, size_t ind){
 
 /* Adiciona uma Task à estrutura */
 void tasks_add_running(Tasks* tasks, Task* task){
-    assert(tasks->sz < 63);
+    assert(tasks->sz < sizeof(tasks->vs)/sizeof(tasks->vs[0]));
     tasks->vs[tasks->sz++] = task;
 }
 
@@ -37,7 +37,7 @@ Task* tasks_remove_running(Tasks* tasks, pid_t handler){
 
 /* Adiciona uma Task à estrutura conforme a sua prioridade (Tasks com mais prioridade ficam num indice mais baixo) */
 void tasks_enqueue(Tasks* tasks, Task* task){
-    assert(tasks->sz < 63);
+    assert(tasks->sz < sizeof(tasks->vs)/sizeof(tasks->vs[0]));
     size_t i = tasks->sz;
     while(i > 0 && tasks->vs[i-1]->req.priority < task->req.priority){
         tasks->vs[i] = tasks->vs[i-1];

@@ -19,7 +19,7 @@ typedef struct {
 
 /* Estrutura de tarefas */
 typedef struct {
-    Task* vs[64]; // Array de Task
+    Task* vs[1000]; // Array de Task
     size_t sz; // Quantidade de Task no Array
 } Tasks;
 

@@ -15,7 +15,7 @@
 #include "util/logger.h"
 #include "util/tasks.h"
 
-/* Prints instructions on how to use the program */
+/* Imprime as indicações de como usar o programa */
 void usage(int argc, char** argv){
     (void) argc;
 
@@ -24,41 +24,47 @@ void usage(int argc, char** argv){
     sv_write(sv_from_cstr(buf), STDOUT_FILENO);
 }
 
-typedef struct {
-    // path para os ficheiros binarios
-    const char* bin_path;
-    // define o numero maximo de instancias de cada executavel
-    OperationMSet max_insts;
+/* Configuração do servidor */
+typedef struct { 
+    const char* bin_path; // Caminho para os ficheiros binários 
+    OperationMSet max_insts; // Define o número máximo de instâncias de cada executável
 } ServerConfiguration;
 
-// inicia no inicio da coisa
-static ServerConfiguration server_configuration;
 
+static ServerConfiguration server_configuration; // Configuração do servidor
+
+/* Estados de spawn de um gestor de cliente */
+typedef enum {
+    SPAWN_STATE_NONE, // o servidor nao esta a spawnar um gestor atualmente
+    SPAWN_STATE_SPAWNING, // o servidor esta a spawnar um gestor
+    SPAWN_STATE_SPAWNING_SIGNAL, // o servidor recebeu um signal enquanto spawnava um gestor
+} SpawnState;
+
+/* Estado do servidor */
 typedef struct {
-    // quantidade de coisos que estao a correr
-    OperationMSet curr_insts;
-    // tasks que estao a correr
-    Tasks running;
-    // tasks que estao na fila
-    Tasks in_queue;
-    // indica se o servidor recebeu SIGTERM
-    bool terminated;
-    // FIFO onde o servidor recebe pedidos de todos os clientes
-    int sv_pipe[2];
+    OperationMSet curr_insts; // Quantidade de operações a correr
+    Tasks running; // Tasks que estão a correr
+    Tasks in_queue; // Tasks que estão à espera de correr
+    bool terminated; // Indica se o servidor recebeu SIGTERM
+    int sv_pipe[2]; // FIFO onde o servidor recebe pedidos de todos os clientes
+    SpawnState spawn_state; // indica se o servidor esta atualmenta a spawnar um handler
 } ServerState;
 
-// inicializar a 0
+/* Inicializa o estado do servidor a 0 */
 static ServerState server_state = {
     .curr_insts = { .vs = { 0 } },
     .running = { .vs = { 0 }, .sz = 0},
     .in_queue = { .vs = { 0 }, .sz = 0 },
-    .terminated = false
+    .terminated = false,
+    .spawn_state = SPAWN_STATE_NONE
 };
 
+/* Sabendo o número máximo de instâncias dos executáveis, retorna True se ainda puder a Task às Tasks a correr */
 bool can_run_task(Task* task){
     return op_mset_lte(&server_state.curr_insts, &task->mset, &server_configuration.max_insts);
 }
 
+/* Retorna a próxima Task a poder ser corrida */
 Task* next_runnable_task(){
     for(size_t i = 0; i < server_state.in_queue.sz; i++){
         if(can_run_task(server_state.in_queue.vs[i])){
@@ -68,8 +74,10 @@ Task* next_runnable_task(){
     return NULL;
 }
 
-// inicia o handler 
+/* Inicia o gestor do cliente */  
 void spawn_client_handler(Task* task){
+    server_state.spawn_state = SPAWN_STATE_SPAWNING;
+
     pid_t child_pid = fork();
     if(child_pid < 0){
         return;
@@ -79,7 +87,7 @@ void spawn_client_handler(Task* task){
             servermsg_write(&cmsg, task->ser2cli_pipe[1]);
         }
 
-        /* remove handler from parent */
+        // Desativa os sinais no gestor
         signal(SIGCHLD, SIG_DFL);
         signal(SIGTERM, SIG_DFL);
         Proc* procs = procs_run_operations(server_configuration.bin_path, task->req.filepath_in, task->req.filepath_out, task->req.ops);
@@ -100,16 +108,20 @@ void spawn_client_handler(Task* task){
         exit(0);
     } else {
         logger_debug_fmt("running new task with operations " OPERATION_MSET_FMT " and priority %d", OPERATION_MSET_ARG(task->mset), task->req.priority);
-
-        op_mset_add(&server_state.curr_insts, &task->mset);
+    
         tasks_add_running(&server_state.running, task);
         task->handler = child_pid;
-
-        logger_debug_fmt("operations currently running " OPERATION_MSET_FMT, OPERATION_MSET_ARG(server_state.curr_insts));
+        op_mset_add(&server_state.curr_insts, &task->mset);
+    
     }
+    if(server_state.spawn_state == SPAWN_STATE_SPAWNING_SIGNAL){
+        server_state.spawn_state = SPAWN_STATE_NONE;
+        raise(SIGUSR1);
+    }
+    server_state.spawn_state = SPAWN_STATE_NONE;
 }
 
-// desligar o servidor se nao existirem tarefas a executar
+/* Desliga o servidor se não tiver tarefas a executar */
 void attempt_shutdown(){
     if(server_state.running.sz == 0){
         pipe_close(server_state.sv_pipe);
@@ -117,6 +129,7 @@ void attempt_shutdown(){
     }
 }
 
+/* Trata do sinal de término */
 void sigterm_handler(int signum){
     (void) signum;
     server_state.terminated = true;
@@ -124,16 +137,26 @@ void sigterm_handler(int signum){
     attempt_shutdown();
 }
 
+/* Remove um gestor de cliente cuja execução terminou */
 void remove_handler(pid_t handler){
     Task* task = tasks_remove_running(&server_state.running, handler);
-    assert(task != NULL);
+    if(task == NULL){
+        return;
+    }
+
     op_mset_sub(&server_state.curr_insts, &task->mset);
     task_free(task);
 }
 
+/* Verifica se há gestores terminados e, se tal acontecer, remove-os */
 void check_dead_handlers(int signum) {
+    if(server_state.spawn_state != SPAWN_STATE_NONE){
+        server_state.spawn_state = SPAWN_STATE_SPAWNING_SIGNAL;
+        return;
+    }
     signal(SIGCHLD, check_dead_handlers);
     signal(SIGALRM, check_dead_handlers);
+    signal(SIGUSR1, check_dead_handlers);
     alarm(5);
     (void) signum;
 
@@ -151,9 +174,10 @@ void check_dead_handlers(int signum) {
     if(server_state.terminated){
         attempt_shutdown();
     }
+    logger_log_fmt("operations currently running " OPERATION_MSET_FMT, OPERATION_MSET_ARG(server_state.curr_insts));
 }
 
-
+/* Interpreta a configuração */
 void parse_config(const char* config_filepath){
     // set max_insts unlimited by default
     for(size_t i = 0; i < OPERATION_AMOUNT; i++){
@@ -184,6 +208,7 @@ void parse_config(const char* config_filepath){
     free((void*) conf_str);
 }
 
+/* Envia a resposta com o status atual do servidor */
 void send_status_response(int fd){
     ServerMessage smsg = (ServerMessage) { .type = RESPONSE_STATUS };
     smsg.status = malloc(sizeof(ServerMessageStatus));
@@ -204,7 +229,7 @@ void send_status_response(int fd){
     smsg.status->maximum_ops = server_configuration.max_insts;
 
     servermsg_write(&smsg, fd);
-    
+
     free(smsg.status->pending_tasks);
     free(smsg.status->running_tasks);
     free(smsg.status);
@@ -213,6 +238,7 @@ void send_status_response(int fd){
     servermsg_write(&smsg, fd);
 }
 
+/* Aceita o cliente */
 Task* accept_client(pid_t client){
     Task* task = calloc(1, sizeof(Task));
     task->client = client;
@@ -264,7 +290,7 @@ err_failed_open_c2s:
     return NULL;
 }
 
-/* Main */
+
 int main(int argc, char** argv){
     (void) server_state;
     if(argc != 3){
@@ -278,6 +304,7 @@ int main(int argc, char** argv){
 
     signal(SIGCHLD, check_dead_handlers);
     signal(SIGTERM, sigterm_handler);
+    signal(SIGUSR1, sigterm_handler);
 
     assert(open_server(server_state.sv_pipe, true));
     while(1){

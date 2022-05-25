@@ -140,7 +140,7 @@ err_alloc:
     return NULL;
 }
 
-/* Escreve um ServerMessage para um File Descriptor */
+/* Escreve uma ServerMessage para um File Descriptor */
 bool servermsg_write(ServerMessage* smsg, int fd){
     bool ret = write(fd, &smsg->type, sizeof(smsg->type)) == sizeof(smsg->type);
     if(smsg->type == RESPONSE_STATUS){
@@ -164,6 +164,7 @@ int fd_set_nonblocking(int fd){
     return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
+/* Altera as flags de um File Descriptor para o colocar como blocking */
 int fd_set_blocking(int fd){
     int flags = fcntl(fd, F_GETFL);
     return fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);

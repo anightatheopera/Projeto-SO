@@ -12,12 +12,14 @@
 #include "util/communication.h"
 #include "util/logger.h"
 
+/* Dá print quando há um timeout */
 void timeout(int signum){
 	(void) signum;
 	logger_write("Response from server timedout.\n");
 	exit(1);
 }
 
+/* Ultrapassa o primeiro argumento de argv */
 char* shift(int* argc, char*** argv){
 	if(*argc == 0){
 		return NULL;
@@ -28,6 +30,7 @@ char* shift(int* argc, char*** argv){
 	return arg;
 }
 
+/* Imprime a maneira de usar o programa */
 void help(char* program){
 	logger_write("Usage:\n");
 	logger_write_fmt("\t%s status\n", program);
@@ -39,6 +42,7 @@ void help(char* program){
 	exit(1);
 }
 
+/* Abre os pipes, mandando uma mensagem se tal não for possível */
 void open_pipes(pid_t pid, int sv[2], int sv2c[2], int c2sv[2]){
 	if(!open_server(sv, false) || !open_client2server(pid, c2sv, true) || !open_server2client(pid, sv2c, true)){
 		logger_write("Failed to open the pipes to the server.\n");
@@ -46,6 +50,7 @@ void open_pipes(pid_t pid, int sv[2], int sv2c[2], int c2sv[2]){
 	}
 }
 
+/* Retira as informações sobre quais operações a executar e executa-as */
 void send_operations_request(int c2sv[2], int argc, char** argv, char* program){
 	Request req;
 	req.priority = 0;
@@ -77,13 +82,16 @@ void send_operations_request(int c2sv[2], int argc, char** argv, char* program){
     assert(clientmsg_write(&cmsg, c2sv[1]));
 }
 
+/* Manda um pedido para receber o status do servidor */
 void send_status_request(int c2sv[2]){
 	ClientMessage cmsg = { .type = REQUEST_STATUS };
     assert(clientmsg_write(&cmsg, c2sv[1]));
 }
 
+/* Imprime as informações de um request */
 void print_requests(Request* reqs, size_t sz){
-    for(size_t i = 0; i < sz; i++){
+	size_t end = (sz < 5) ? sz : 5;
+    for(size_t i = 0; i < end; i++){
         logger_write_fmt("- %d %s %s", reqs[i].priority, reqs[i].filepath_in, reqs[i].filepath_out);
 		size_t ops_sz = operations_size(reqs[i].ops);
         for(size_t op_i = 0; op_i < ops_sz; op_i++){
@@ -93,11 +101,12 @@ void print_requests(Request* reqs, size_t sz){
     }
 }
 
+/* Imprime o status, dando informação sobre quais as mensagens a correr e quais estão pendentes */
 void print_status(ServerMessageStatus* status){
-    logger_write("Running Tasks:\n");
+    logger_write_fmt("Running Tasks: (%d)\n", status->running_tasks_sz);
 	print_requests(status->running_tasks, status->running_tasks_sz);
 
-	logger_write("\nPending Tasks:\n");
+	logger_write_fmt("\nPending Tasks: (%d)\n", status->pending_tasks_sz);
 	print_requests(status->pending_tasks, status->pending_tasks_sz);
 
 	logger_write("\nOperations:\n");
@@ -106,11 +115,11 @@ void print_status(ServerMessageStatus* status){
 	}
 }
 
+/* Espera pelas respostas do servidor e age conforme o tipo de resposta */
 void handle_replies(int sv2c[2]){
 	ServerMessage smsg;
-	alarm(2);
 	while(servermsg_read(&smsg, sv2c[0])){
-		alarm(0);
+		alarm(60);
 		switch (smsg.type){
 		case RESPONSE_STARTED:
 			logger_write("The request has been started.\n");
@@ -141,6 +150,8 @@ int main(int argc, char** argv){
 
 	int sv[2], sv2c[2], c2sv[2];
 	open_pipes(pid, sv, sv2c, c2sv);
+
+	alarm(2);
 	if(!strcmp(*argv, "status")){
 		send_status_request(c2sv);
 	} else {
