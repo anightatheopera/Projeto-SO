@@ -145,6 +145,9 @@ bool servermsg_write(ServerMessage* smsg, int fd){
     bool ret = write(fd, &smsg->type, sizeof(smsg->type)) == sizeof(smsg->type);
     if(smsg->type == RESPONSE_STATUS){
         return ret && servermsgstatus_write(smsg->status, fd);
+    } else if(smsg->type == RESPONSE_FINISHED){
+        return ret && (write(fd, &smsg->bytes_read, sizeof(size_t)) == sizeof(size_t))
+            && (write(fd, &smsg->bytes_written, sizeof(size_t)) == sizeof(size_t));
     }
     return ret;
 }
@@ -154,6 +157,9 @@ bool servermsg_read(ServerMessage* smsg, int fd){
     bool ret = read(fd, &smsg->type, sizeof(smsg->type)) == sizeof(smsg->type);
     if(smsg->type == RESPONSE_STATUS){
         return ret && (smsg->status = servermsgstatus_read(fd)) != NULL;
+    } else if(smsg->type == RESPONSE_FINISHED){
+        return ret && (read(fd, &smsg->bytes_read, sizeof(size_t)) == sizeof(size_t))
+            && (read(fd, &smsg->bytes_written, sizeof(size_t)) == sizeof(size_t));
     }
     return ret;
 }

@@ -4,9 +4,9 @@ set -e
 
 run_client() {
     echo "started for $1"
-    (./bin/sdstore "README.md" "/tmp/$1_0" bcompress gcompress \
-    && ./bin/sdstore "/tmp/$1_0" "/tmp/$1_1" encrypt nop decrypt \
-    && ./bin/sdstore "/tmp/$1_1" "/tmp/$1_2" gdecompress bdecompress) > /dev/null
+    (./bin/sdstore proc-file "README.md" "/tmp/$1_0" bcompress gcompress \
+    && ./bin/sdstore proc-file "/tmp/$1_0" "/tmp/$1_1" encrypt nop decrypt \
+    && ./bin/sdstore proc-file "/tmp/$1_1" "/tmp/$1_2" gdecompress bdecompress) > /dev/null
     echo "finished for $1"
 }
 

@@ -90,19 +90,25 @@ void spawn_client_handler(Task* task){
         // Desativa os sinais no gestor
         signal(SIGCHLD, SIG_DFL);
         signal(SIGTERM, SIG_DFL);
-        Proc* procs = procs_run_operations(server_configuration.bin_path, task->req.filepath_in, task->req.filepath_out, task->req.ops);
+        ProcsRunOps procs_run_result =
+            procs_run_operations(server_configuration.bin_path, task->req.filepath_in, task->req.filepath_out, task->req.ops);
+        Proc* procs = procs_run_result.procs;
         size_t procs_sz = operations_size(task->req.ops) + 2;
         for(size_t i = 0; i < procs_sz; i++){
             pid_t pid = waitpid(procs[i].pid, NULL, 0);
             (void) pid;
-            //logger_debug_fmt("awaited for %d.", pid);
         }
 #ifdef DEBUG
         logger_debug("Compiled with DEBUG flag defined, sleeping for 1 second.");
         sleep(2);
 #endif
+        size_t bytes_read = 0;
+        size_t bytes_written = 0;
+        read(procs_run_result.read_reporter, &bytes_read, sizeof(size_t));
+        read(procs_run_result.write_reporter, &bytes_written, sizeof(size_t));
+        logger_log_fmt("READ %ld from '%s'; WRITTEN %ld to '%s'", bytes_read, task->req.filepath_in, bytes_written, task->req.filepath_out);
         {
-            ServerMessage cmsg = { .type = RESPONSE_FINISHED };
+            ServerMessage cmsg = { .type = RESPONSE_FINISHED, .bytes_read = bytes_read, .bytes_written = bytes_written };
             servermsg_write(&cmsg, task->ser2cli_pipe[1]);
         }
         exit(0);
@@ -233,9 +239,6 @@ void send_status_response(int fd){
     free(smsg.status->pending_tasks);
     free(smsg.status->running_tasks);
     free(smsg.status);
-
-    smsg.type = RESPONSE_FINISHED;
-    servermsg_write(&smsg, fd);
 }
 
 /* Aceita o cliente */

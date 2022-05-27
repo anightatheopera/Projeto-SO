@@ -44,10 +44,12 @@ typedef struct {
     OperationMSet maximum_ops;
 } ServerMessageStatus;
 
-/* Pedido enviado do servidor para o client */
+/* Pedido enviado do servidor para o cliente */
 typedef struct {
     ServerMessageType type;
-    ServerMessageStatus* status;
+    size_t bytes_read; // Apenas para o caso de type == RESPONSE_FINISHED
+    size_t bytes_written; // Apenas para o caso de type == RESPONSE_FINISHED
+    ServerMessageStatus* status; // Apenas para o caso de type == RESPONSE_STATUS
 } ServerMessage;
 
 bool str_write(const char* str, int fd);

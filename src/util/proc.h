@@ -9,16 +9,16 @@ typedef struct {
     int out; // FD que pode ser usado para ler do STDOUT do processo ou -1 se não for acessível
 } Proc;
 
-int proc_reader(Proc* proc, int fd);
-
-int proc_writer(Proc* proc, int fd, int in);
-
-int proc_exec_in(Proc* proc, const char* pathname, int in);
+typedef struct {
+    Proc* procs; // Processos executados (length = #Ops + 2)
+    int write_reporter; // pipe onde é escrita a quantidade de bytes escritos
+    int read_reporter; // pipe onde é escrita a quantidade de bytes lidos
+} ProcsRunOps;
 
 void proc_close(Proc* proc);
 
 pid_t proc_wait(Proc* proc, int* wstatus, int options);
 
-Proc* procs_run_operations(const char* filepath_prefix, const char* filepath_in, const char* filepath_out, Operations* ops);
+ProcsRunOps procs_run_operations(const char* filepath_prefix, const char* filepath_in, const char* filepath_out, Operations* ops);
 
 #endif

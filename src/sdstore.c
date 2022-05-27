@@ -34,7 +34,7 @@ char* shift(int* argc, char*** argv){
 void help(char* program){
 	logger_write("Usage:\n");
 	logger_write_fmt("\t%s status\n", program);
-	logger_write_fmt("\t%s [PRIORITY]? [INPUT_FILE] [OUTPUT_FILE] [OPERATION]...\n", program);
+	logger_write_fmt("\t%s proc-file [PRIORITY]? [INPUT_FILE] [OUTPUT_FILE] [OPERATION]...\n", program);
 	logger_write("Operations:\n");
 	for(int i = 0; i < OPERATION_AMOUNT; i++){
 		logger_write_fmt("\t%-20s%s\n", operation_to_str(i), operation_description(i));
@@ -122,19 +122,19 @@ void handle_replies(int sv2c[2]){
 		alarm(60);
 		switch (smsg.type){
 		case RESPONSE_STARTED:
-			logger_write("The request has been started.\n");
+			logger_write("processing\n");
 			break;
 		case RESPONSE_PENDING:
-			logger_write("The request is now pending.\n");
+			logger_write("pending\n");
 			break;
 		case RESPONSE_STATUS:
 			print_status(smsg.status);
 			return;
 		case RESPONSE_TERMINATED:
-			logger_write("Server has been terminated.\n");
+			logger_write("terminated\n");
 			return;
 		case RESPONSE_FINISHED:
-			logger_write("Request has been finished.\n");
+			logger_write_fmt("concluded (bytes-input: %ld, bytes-output: %ld)\n", smsg.bytes_read, smsg.bytes_written);
 			return;
 		}
 	}
@@ -152,10 +152,13 @@ int main(int argc, char** argv){
 	open_pipes(pid, sv, sv2c, c2sv);
 
 	alarm(2);
-	if(!strcmp(*argv, "status")){
+	char* command = shift(&argc, &argv);
+	if(!strcmp(command, "status")){
 		send_status_request(c2sv);
-	} else {
+	} else if(!strcmp(command, "proc-file")){
 		send_operations_request(c2sv, argc, argv, program);
+	} else {
+		help(program);
 	}
 
     write(sv[1], &pid, sizeof(pid_t));
