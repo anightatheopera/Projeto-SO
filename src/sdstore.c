@@ -119,7 +119,7 @@ void print_status(ServerMessageStatus* status){
 void handle_replies(int sv2c[2]){
 	ServerMessage smsg;
 	while(servermsg_read(&smsg, sv2c[0])){
-		alarm(60);
+		alarm(200);
 		switch (smsg.type){
 		case RESPONSE_STARTED:
 			logger_write("processing\n");
