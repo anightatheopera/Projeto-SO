@@ -11,8 +11,8 @@ typedef struct {
 
 typedef struct {
     Proc* procs; // Processos executados (length = #Ops + 2)
-    int write_reporter; // pipe onde é escrita a quantidade de bytes escritos
-    int read_reporter; // pipe onde é escrita a quantidade de bytes lidos
+    int write_reporter; // Pipe onde é escrita a quantidade de bytes escritos
+    int read_reporter; // Pipe onde é escrita a quantidade de bytes lidos
 } ProcsRunOps;
 
 void proc_close(Proc* proc);

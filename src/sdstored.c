@@ -35,9 +35,9 @@ static ServerConfiguration server_configuration; // Configuração do servidor
 
 /* Estados de spawn de um gestor de cliente */
 typedef enum {
-    SPAWN_STATE_NONE, // o servidor nao esta a spawnar um gestor atualmente
-    SPAWN_STATE_SPAWNING, // o servidor esta a spawnar um gestor
-    SPAWN_STATE_SPAWNING_SIGNAL, // o servidor recebeu um signal enquanto spawnava um gestor
+    SPAWN_STATE_NONE, // O servidor não está a gerar um gestor atualmente
+    SPAWN_STATE_SPAWNING, // O servidor está a gerar um gestor
+    SPAWN_STATE_SPAWNING_SIGNAL, // O servidor recebeu um signal enquanto gerava um gestor
 } SpawnState;
 
 /* Estado do servidor */
@@ -47,7 +47,7 @@ typedef struct {
     Tasks in_queue; // Tasks que estão à espera de correr
     bool terminated; // Indica se o servidor recebeu SIGTERM
     int sv_pipe[2]; // FIFO onde o servidor recebe pedidos de todos os clientes
-    SpawnState spawn_state; // indica se o servidor esta atualmenta a spawnar um handler
+    SpawnState spawn_state; // Indica se o servidor esta atualmentá a gerar um handler
 } ServerState;
 
 /* Inicializa o estado do servidor a 0 */
